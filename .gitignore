@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.vscode
+Makefile
+*.out
+*.log
+*.lzma
+maps/
+results/
+baseline/*.png
