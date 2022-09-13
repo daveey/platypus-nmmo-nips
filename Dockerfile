@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:experimental
-FROM --platform=linux/x86_64 nvidia/cuda:11.6.0-runtime-ubuntu20.04
+FROM nvidia/cuda:11.6.0-runtime-ubuntu20.04
 
 #FROM ubuntu:18.04
 
@@ -9,11 +9,13 @@ SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && apt-get install -y \
     git \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    wget \
-    pkg-config
+    vim \
+    cmake \
+    curl \
+    g++ \
+    git \
+    less \
+    wget
 
 WORKDIR /src/baseline
 
@@ -32,16 +34,7 @@ RUN echo > ~/.bashrc
 RUN conda init bash
 
 # Create new environment and install some dependencies.
-RUN conda create -y -n torchbeast python=3.9 \
-    protobuf \
-    ninja \
-    pyyaml \
-    mkl \
-    mkl-include \
-    setuptools \
-    cmake \
-    cffi \
-    typing
+RUN conda create -y -n torchbeast python=3.9
 
 # Activate environment in .bashrc.
 RUN echo "conda activate torchbeast" >> /root/.bashrc

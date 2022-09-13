@@ -224,4 +224,5 @@ class MyMeleeTeam(ScriptedTeam):
 
 
 class TrainConfig(CompetitionConfig):
-    MAP_N = 400
+    # MAP_N = 400
+    MAP_N = 4
