@@ -16,13 +16,14 @@ on:
   push:
     branches: [ $default-branch ]
   workflow_dispatch:
+    branches: [ $default-branch ]
     # inputs:
     #   logLevel:
     #     description: 'Log level'
     #     required: true
     #     default: 'warning'
-      tags:
-        description: 'Manual Workflow Dispatch'
+    tags:
+      description: 'Manual Workflow Dispatch'
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
