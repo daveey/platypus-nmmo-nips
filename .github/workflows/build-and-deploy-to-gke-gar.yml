@@ -55,7 +55,7 @@ jobs:
       uses: 'google-github-actions/auth@v0'
       with:
         token_format: 'access_token'
-        workload_identity_provider: 'projects/${{ secrets.GKE_PROJECT }}/locations/global/workloadIdentityPools/platypus-identity-pool/providers/platypus-identity-provider'
+        workload_identity_provider: 'projects/385171159206/locations/global/workloadIdentityPools/platypus-identity-pool/providers/platypus-identity-provider'
         service_account: ${{ secrets.GKE_SA_EMAIL }}
 
     # Alternative option - authentication via credentials json
