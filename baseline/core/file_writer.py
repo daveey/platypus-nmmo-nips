@@ -62,7 +62,6 @@ def gather_metadata() -> Dict:
 
 
 class FileWriter:
-
     def __init__(
         self,
         xpid: str = None,

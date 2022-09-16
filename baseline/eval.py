@@ -9,7 +9,8 @@ def rollout():
     config = CompetitionConfig()
     config.RENDER = False
     config.SAVE_REPLAY = "eval"
-    checkpoint_path = Path(__file__).parent / "checkpoints" / "model_76800.pt"
+    checkpoint_path = Path(
+        __file__).parent / "checkpoints" / "model_2757376.pt"
     my_team = MonobeastBaseline(team_id=f"my-team",
                                 env_config=config,
                                 checkpoint_path=checkpoint_path)

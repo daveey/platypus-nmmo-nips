@@ -1,3 +1,4 @@
+import logging
 from copy import deepcopy
 from typing import Any, Dict, Tuple
 
@@ -18,11 +19,19 @@ class TrainEnv(Wrapper):
     num_team_member = 8
     opponent_pool = [scripted.MixtureTeam, scripted.CombatTeam]
 
-    def __init__(self, env: TeamBasedEnv, num_selfplay_team: int = 1):
+    def __init__(
+        self,
+        env: TeamBasedEnv,
+        num_selfplay_team: int = 1,
+        reward_setting: str = "phase1",
+    ):
+        logging.info(
+            f"num_selfplay_team: {num_selfplay_team}, reward_setting: {reward_setting}"
+        )
         super().__init__(env)
         self.num_selfplay_team = num_selfplay_team
         self.feature_parser = FeatureParser()
-        self.reward_parser = RewardParser()
+        self.reward_parser = RewardParser(reward_setting)
         self._setup()
 
     def _setup(self):
@@ -72,7 +81,7 @@ class TrainEnv(Wrapper):
         done = self._flatten(self._get(raw_done))
         metrics = self._flatten(self._get(self.metrices_by_team()))
         reward = self.reward_parser.parse(self._prev_metrics, metrics, obs,
-                                          self._step)
+                                          self._step, done)
 
         self._prev_raw_obs = raw_obs
         self._prev_metrics = metrics
@@ -224,5 +233,4 @@ class MyMeleeTeam(ScriptedTeam):
 
 
 class TrainConfig(CompetitionConfig):
-    # MAP_N = 400
-    MAP_N = 4
+    MAP_N = 400

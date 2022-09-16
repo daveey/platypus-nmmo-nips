@@ -2,7 +2,6 @@ import torch
 
 
 class MaskedPolicy:
-
     def __init__(self, logits, valid_actions=None):
         self.valid_actions = valid_actions
         if valid_actions is None:

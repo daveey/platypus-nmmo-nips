@@ -16,7 +16,7 @@ from torch import Tensor
 from torch import multiprocessing as mp
 from torch import nn
 
-from core import file_writer, gae, loss, prof
+from core import file_writer, loss, prof, advantage
 from neural_mmo import MonobeastEnv as Environment
 from neural_mmo import NMMONet, TrainConfig, TrainEnv
 
@@ -56,13 +56,21 @@ parser.add_argument("--num_buffers", default=None, type=int,
 parser.add_argument("--disable_cuda", action="store_true",
                     help="Disable CUDA.")
 parser.add_argument("--checkpoint_interval", default=600, type=int, metavar="T",
-                    help="checkpoint interval (default: 10min).")
+                    help="Checkpoint interval (default: 10min).")
+parser.add_argument("--restart_actor_interval", default=18000, type=int, metavar="T",
+                    help="Restart actor interval (default: 5h).")
+parser.add_argument("--checkpoint_path", default=None, type=str,
+                    help="Load previous checkpoint to continue training")
 parser.add_argument("--num_selfplay_team", default=1, type=int, metavar="T",
                     help="Number of self-play team (default: 1).")
 parser.add_argument("--data_reuse", default=4, type=int, metavar="T",
                     help="Data reuse(default: 4).")
+parser.add_argument("--reward_setting", default="phase1", type=str,
+                    help="Reward setting.")
 
 # Loss settings.
+parser.add_argument("--upgo_coef", default=0.5,
+                    type=float, help="Upgo coefficient.")
 parser.add_argument("--entropy_coef", default=0.0006,
                     type=float, help="Entropy coefficient.")
 parser.add_argument("--value_coef", default=0.5,
@@ -91,7 +99,11 @@ Net = NMMONet
 
 def create_env(flags):
     env = TeamBasedEnv(config=TrainConfig())
-    return TrainEnv(env)
+    return TrainEnv(
+        env,
+        num_selfplay_team=flags.num_selfplay_team,
+        reward_setting=flags.reward_setting,
+    )
 
 
 def create_buffers(
@@ -323,12 +335,19 @@ def learn(
             behaviour_policy_logprobs.append(batch[f"{k}_logp"])
             valid_actions.append(batch[f"va_{k}"][:-1])
 
-    gae_returns = gae.compute_return_and_advantage(
+    gae_returns = advantage.gae(
         value=batch["value"],
         reward=reward,
         bootstrap_value=bootstrap_value,
         discount=discount,
         lambda_=1.0,
+        mask=mask,
+    )
+    upgo_returns = advantage.upgo(
+        value=batch["value"],
+        reward=reward,
+        bootstrap_value=bootstrap_value,
+        discount=discount,
         mask=mask,
     )
 
@@ -348,9 +367,11 @@ def learn(
             target_value=gae_returns.vs,
             behaviour_policy_logprobs=behaviour_policy_logprobs,
             advantage=gae_returns.advantages,
+            upgo_advantage=upgo_returns.advantages,
             valid_actions=valid_actions,
             entropy_coef=flags.entropy_coef,
             value_coef=flags.value_coef,
+            upgo_coef=flags.upgo_coef,
             clip_ratio=flags.clip_ratio,
             mask=mask,
         )
@@ -360,8 +381,9 @@ def learn(
                                              flags.grad_norm_clipping)
         optimizer.step()
     actor_model.load_state_dict(learner_model.state_dict())
-    episode_returns = batch["episode_return"][batch["done"]]
-    episode_steps = batch["episode_step"][batch["done"]]
+    episode_end = (batch["done"] == True) & (batch["mask"] == True)
+    episode_returns = batch["episode_return"][episode_end]
+    episode_steps = batch["episode_step"][episode_end]
 
     def _reduce(func: Callable, x: torch.Tensor):
         if x.nelement() == 0:
@@ -478,6 +500,10 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
 
     actor_model = Net()
     learner_model = Net().to(device=flags.device)
+    if flags.checkpoint_path is not None:
+        logging.info(f"load checkpoint: {flags.checkpoint_path}")
+        previous_checkpoint = torch.load(flags.checkpoint_path)
+        learner_model.load_state_dict(previous_checkpoint["model_state_dict"])
     actor_model.share_memory()
     actor_model.load_state_dict(learner_model.state_dict())
 
@@ -509,6 +535,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
         "max_episode_step",
         "min_episode_step",
         "policy_loss",
+        "upgo_loss",
         "value_loss",
         "entropy_loss",
         "advantage",
@@ -552,6 +579,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     timer = timeit.default_timer
     try:
         last_checkpoint_time = timer()
+        last_restart_actor_time = timer()
         while step < flags.total_steps:
             start_step = step
             start_time = timer()
@@ -560,6 +588,8 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
             if timer() - last_checkpoint_time > flags.checkpoint_interval:
                 checkpoint(flags, learner_model, step)
                 last_checkpoint_time = timer()
+
+            if timer() - last_restart_actor_time > flags.restart_actor_interval: # yapf: disable
                 actor_processes = start_process(
                     flags,
                     ctx,
@@ -569,6 +599,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
                     full_queue,
                     buffers,
                 )
+                last_restart_actor_time = timer()
 
             sps = (step - start_step) / (timer() - start_time)
             if stats.get("episode_returns", None):
@@ -595,7 +626,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
 
 
 if __name__ == "__main__":
-    from neural_mmo import TrainEnv
+    torch.set_num_threads(1)
     flags = parser.parse_args()
     flags.num_agents = flags.num_selfplay_team * TrainEnv.num_team_member
     train(flags)

@@ -19,7 +19,6 @@ import timeit
 
 class Timings:
     """Not thread-safe."""
-
     def __init__(self):
         self._means = collections.defaultdict(int)
         self._vars = collections.defaultdict(int)

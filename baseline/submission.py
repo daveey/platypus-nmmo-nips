@@ -13,7 +13,6 @@ from neural_mmo import FeatureParser, MyMeleeTeam, NMMONet, TrainEnv
 
 
 class MonobeastBaseline(Team):
-
     def __init__(self,
                  team_id: str,
                  env_config: config.Config,
@@ -68,5 +67,5 @@ class Submission:
     team_klass = MonobeastBaseline
     init_params = {
         "checkpoint_path":
-        Path(__file__).parent / "checkpoints" / "model_76800.pt"
+        Path(__file__).parent / "checkpoints" / "model_2757376.pt"
     }

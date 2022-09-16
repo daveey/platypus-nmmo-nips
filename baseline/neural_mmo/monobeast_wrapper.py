@@ -18,7 +18,6 @@ def to_tensor(x):
 
 
 class MonobeastEnv:
-
     def __init__(self, env: TrainEnv):
         if not isinstance(env, TrainEnv):
             raise RuntimeError(f"env is not instance of TrainEnv.")
@@ -32,8 +31,8 @@ class MonobeastEnv:
 
     def step(self, actions: Dict[int, int]):
         obs, reward, done, info = self.env.step(actions)
-        for agent_id, d in done.items():
-            if not d:
+        for agent_id in done.keys():
+            if info[agent_id]["mask"]:
                 self._info[agent_id]["episode_step"] += 1
             self._info[agent_id]["episode_return"] += reward[agent_id]
             self._info[agent_id].update(info[agent_id])

@@ -22,7 +22,6 @@ class ActionHead(nn.Module):
 
 
 class NMMONet(nn.Module):
-
     def __init__(self):
         super().__init__()
         self.local_map_cnn = nn.Sequential(
