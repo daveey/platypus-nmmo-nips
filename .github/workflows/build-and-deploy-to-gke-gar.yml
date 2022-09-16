@@ -22,8 +22,8 @@ on:
     #     description: 'Log level'
     #     required: true
     #     default: 'warning'
-    tags:
-      description: 'Manual Workflow Dispatch'
+    #   tags:
+    #     description: 'Manual Workflow Dispatch'
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
