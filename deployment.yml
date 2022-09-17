@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: d-platypus-nmmo-nips
+  # labels:
+  #   app: d-platypus-nmmo-nips
+spec:
+  containers:
+  - name: platypus-nmmo-container
+    image: LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG
