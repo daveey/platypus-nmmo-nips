@@ -6,6 +6,9 @@ metadata:
   name: d-platypus-nmmo-nips
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      app: d-platypus-nmmo-nips
   template:
     metadata:
       labels:
