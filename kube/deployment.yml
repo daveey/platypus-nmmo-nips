@@ -24,3 +24,6 @@ spec:
           volumeMounts:
             - mountPath: /dev/shm
               name: dshm
+          resources:
+            limits:
+              nvidia.com/gpu: 1
