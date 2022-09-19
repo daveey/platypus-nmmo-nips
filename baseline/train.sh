@@ -11,7 +11,7 @@ python monobeast.py \
     --batch_size 512 \
     --unroll_length 32 \
     --savedir ./results \
-    --checkpoint_interval 3600 \
+    --checkpoint_interval 600 \
     --restart_actor_interval 18000 \
     --reward_setting phase2 \
     --xpid nmmo \
