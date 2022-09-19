@@ -15,12 +15,21 @@ name: Build and Deploy to GKE
 on:
   push:
     branches: [ $default-branch ]
+  workflow_dispatch:
+    branches: [ $default-branch ]
+    # inputs:
+    #   logLevel:
+    #     description: 'Log level'
+    #     required: true
+    #     default: 'warning'
+    #   tags:
+    #     description: 'Manual Workflow Dispatch'
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
   GAR_LOCATION: us-central1
-  # GKE_CLUSTER: gpu-cluster
-  GKE_CLUSTER: cpu-cluster
+  GKE_CLUSTER: gpu-cluster
+  # GKE_CLUSTER: cpu-cluster
   GKE_ZONE: us-central1-c
   DEPLOYMENT_NAME: d-platypus-nmmo-nips # must match name in deployment.yml
   REPOSITORY: platypus-nmmo-nips # TODO: update to Artifact Registry docker repository
@@ -40,14 +49,18 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
+    - name: Docker Layer Caching
+      uses: satackey/action-docker-layer-caching@v0.0.11
+
     # Configure Workload Identity Federation and generate an access token.
-    # - id: 'auth'
-    #   name: 'Authenticate to Google Cloud'
-    #   uses: 'google-github-actions/auth@v0'
-    #   with:
-    #     token_format: 'access_token'
-    #     workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
-    #     service_account: 'my-service-account@my-project.iam.gserviceaccount.com'
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v0'
+      with:
+        token_format: 'access_token'
+        workload_identity_provider: 'projects/385171159206/locations/global/workloadIdentityPools/platypus-identity-pool/providers/platypus-identity-provider'
+        service_account: ${{ secrets.GKE_SA_EMAIL }}
+
     # Alternative option - authentication via credentials json
     # - id: 'auth'
     #   uses: 'google-github-actions/auth@v0'
@@ -55,10 +68,10 @@ jobs:
     #     credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
     # using this instead (from Github -> GKE tutorial)
-    - uses: google-github-actions/setup-gcloud@94337306dda8180d967a56932ceb4ddcf01edae7
-      with:
-        service_account_key: ${{ secrets.GKE_SA_KEY }}
-        project_id: ${{ secrets.GKE_PROJECT }}
+    # - uses: google-github-actions/setup-gcloud@94337306dda8180d967a56932ceb4ddcf01edae7
+    #   with:
+    #     service_account_key: ${{ secrets.GKE_SA_KEY }}
+    #     project_id: ${{ secrets.GKE_PROJECT }}
 
     - name: Docker configuration
       run: |-
