@@ -50,7 +50,7 @@ RUN pip install -r /src/requirements.txt
 ENV OMP_NUM_THREADS 1
 
 # Run.
-CMD ["bash", "-c", "train.sh"]
+CMD ["bash", "-c", "./train.sh"]
 
 # Docker commands:
 #   docker rm torchbeast -v
