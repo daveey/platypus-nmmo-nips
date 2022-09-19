@@ -49,6 +49,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
+    - name: Docker Layer Caching
+      uses: satackey/action-docker-layer-caching@v0.0.11
+
     # Configure Workload Identity Federation and generate an access token.
     - id: 'auth'
       name: 'Authenticate to Google Cloud'
