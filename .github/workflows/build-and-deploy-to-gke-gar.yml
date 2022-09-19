@@ -28,8 +28,8 @@ on:
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
   GAR_LOCATION: us-central1
-  # GKE_CLUSTER: gpu-cluster
-  GKE_CLUSTER: cpu-cluster
+  GKE_CLUSTER: gpu-cluster
+  # GKE_CLUSTER: cpu-cluster
   GKE_ZONE: us-central1-c
   DEPLOYMENT_NAME: d-platypus-nmmo-nips # must match name in deployment.yml
   REPOSITORY: platypus-nmmo-nips # TODO: update to Artifact Registry docker repository
