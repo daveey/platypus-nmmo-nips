@@ -43,6 +43,7 @@ RUN echo "conda activate torchbeast" >> /root/.bashrc
 ENV BASH_ENV /root/.bashrc
 
 ADD . /src
+RUN pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html 
 RUN pip install -r /src/requirements.txt
 
 
