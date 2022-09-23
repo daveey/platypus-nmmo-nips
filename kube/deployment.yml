@@ -21,9 +21,23 @@ spec:
       containers:
         - image: LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG
           name: platypus-nmmo-container
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - SYS_ADMIN
           volumeMounts:
             - mountPath: /dev/shm
               name: dshm
           resources:
             limits:
               nvidia.com/gpu: 1
+          lifecycle:
+            postStart:
+              exec:
+                command: ["gcsfuse", "-o", "nonempty", "platypus-nmmo-nips", "/mnt/platypus-nmmo-nips"]
+            preStop:
+              exec:
+                command: ["fusermount", "-u", "/mnt/platypus-nmmo-nips"]
+
+

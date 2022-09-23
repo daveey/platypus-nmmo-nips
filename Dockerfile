@@ -7,7 +7,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update && apt-get install -y \
+RUN set -e; \
+    apt-get update -y && apt-get install -y \
     git \
     vim \
     cmake \
@@ -15,7 +16,17 @@ RUN apt-get update && apt-get install -y \
     g++ \
     git \
     less \
-    wget
+    wget \
+    tini \
+    lsb-release; \
+    GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`; \
+    echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | \
+    tee /etc/apt/sources.list.d/gcsfuse.list; \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
+    apt-key add -; \
+    apt-get update; \
+    apt-get install -y gcsfuse \
+    && apt-get clean
 
 WORKDIR /src/baseline
 
