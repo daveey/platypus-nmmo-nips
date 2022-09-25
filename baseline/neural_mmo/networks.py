@@ -7,10 +7,14 @@ from core.mask import MaskedPolicy
 
 
 class ActionHead(nn.Module):
-    name2dim = {"move": 5, "attack_target": 16}
+    name2dim = {}
 
-    def __init__(self, input_dim: int):
+    def __init__(self, input_dim: int, num_bodies: int):
         super().__init__()
+        for b in range(num_bodies):
+          self.name2dim[f"move:{b}"] = 5
+          self.name2dim[f"attack_target:{b}"] = 16
+
         self.heads = nn.ModuleDict({
             name: nn.Linear(input_dim, output_dim)
             for name, output_dim in self.name2dim.items()
@@ -24,6 +28,8 @@ class ActionHead(nn.Module):
 class NMMONet(nn.Module):
     def __init__(self):
         super().__init__()
+        self.num_bodies = 8
+
         self.local_map_cnn = nn.Sequential(
             nn.Conv2d(24, 32, 3, 2, 1),
             nn.ReLU(),
@@ -40,8 +46,8 @@ class NMMONet(nn.Module):
         self.other_entity_fc1 = nn.Linear(26, 32)
         self.other_entity_fc2 = nn.Linear(15 * 32, 32)
 
-        self.fc = nn.Linear(64 + 32 + 32, 64)
-        self.action_head = ActionHead(64)
+        self.fc = nn.Linear(self.num_bodies * (64 + 32 + 32), 64)
+        self.action_head = ActionHead(64, self.num_bodies)
         self.value_head = nn.Linear(64, 1)
 
     def local_map_embedding(self, input_dict):
@@ -88,13 +94,38 @@ class NMMONet(nn.Module):
         input_dict: Dict,
         training: bool = False,
     ) -> Dict[str, torch.Tensor]:
-        T, B, *_ = input_dict["terrain"].shape
-        local_map_emb = self.local_map_embedding(input_dict)
-        self_entity_emb, other_entity_emb = self.entity_embedding(input_dict)
+        T, B, *_ = input_dict["terrain:0"].shape
+        # b_input_dict = {k.split(":")[0]: v for k,v in input_dict.items()}
+        embeddings = []
+        for body in range(self.num_bodies):
+            local_map_emb = self.local_map_embedding({
+                "terrain": input_dict[f"terrain:{body}"],
+                "death_fog_damage": input_dict[f"death_fog_damage:{body}"],
+                "reachable": input_dict[f"reachable:{body}"],
+                "entity_population": input_dict[f"entity_population:{body}"],
+            })
+            self_entity_emb, other_entity_emb = self.entity_embedding({
+                "self_entity": input_dict[f"self_entity:{body}"],
+                "other_entity": input_dict[f"other_entity:{body}"],
+            })
+            embeddings.extend([local_map_emb, self_entity_emb, other_entity_emb])
 
-        x = torch.cat([local_map_emb, self_entity_emb, other_entity_emb],
-                      dim=-1)
+        x = torch.cat(embeddings, dim=-1)
         x = F.relu(self.fc(x))
+
+        # T, B, *_ = b_input_dict["terrain"].shape
+        # print("terrain", b_input_dict["terrain"].shape)
+        # local_map_emb = self.local_map_embedding(b_input_dict)
+        # print("local_map", local_map_emb.shape)
+        # self_entity_emb, other_entity_emb = self.entity_embedding(b_input_dict)
+        # print("self_entity_emb", self_entity_emb.shape)
+
+        # x = torch.cat([local_map_emb, self_entity_emb, other_entity_emb],
+        #               dim=-1)
+        # print("x", x.shape)
+        # x = F.relu(self.fc(x))
+        # print("xfc", x.shape)
+       
 
         logits = self.action_head(x)
         value = self.value_head(x).view(T, B)

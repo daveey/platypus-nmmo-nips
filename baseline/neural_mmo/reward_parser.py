@@ -9,7 +9,23 @@ EQUIPMENT = [
 ]
 PROFESSION = ["MeleeLevel"]
 
+class TeamRewardParser:
+    def __init__(self, phase: str = "phase1"):
+        self._agent_reward_parser = RewardParser(phase)
 
+    def reset(self):
+        self._agent_reward_parser.reset()
+    
+    def parse(
+        self,
+        prev_metric: Dict[int, Metrics],
+        curr_metric: Dict[int, Metrics],
+        obs: Dict[int, Dict[str, np.ndarray]],
+        step: int,
+        done: int,
+    ) -> Dict[int, float]:
+        return self._agent_reward_parser.parse()
+    
 class RewardParser:
     def __init__(self, phase: str = "phase1"):
         assert phase in ["phase1", "phase2"]
@@ -22,6 +38,24 @@ class RewardParser:
 
     def parse(
         self,
+        prev_metric: Dict[int, Dict[int, Metrics]],
+        curr_metric: Dict[int, Dict[int, Metrics]],
+        obs: Dict[int, Dict[int, Dict[str, np.ndarray]]],
+        step: int,
+        done: Dict[int, Dict[int, bool]],
+    ) -> Dict[int, float]:
+        reward = {}
+        for agent_id in curr_metric:
+            if agent_id in obs:
+                agent_rewards = self._parse_agent(prev_metric[agent_id], curr_metric[agent_id], obs[agent_id], step, done[agent_id])
+                reward[agent_id] = sum(agent_rewards.values())
+            else:
+                reward[agent_id] = 0
+
+        return reward
+
+    def _parse_agent(
+        self,
         prev_metric: Dict[int, Metrics],
         curr_metric: Dict[int, Metrics],
         obs: Dict[int, Dict[str, np.ndarray]],
@@ -30,8 +64,8 @@ class RewardParser:
     ) -> Dict[int, float]:
         reward = {}
         food, water = self.extract_info_from_obs(obs)
-        for agent_id in curr_metric:
-            curr, prev = curr_metric[agent_id], prev_metric[agent_id]
+        for body_id in curr_metric:
+            curr, prev = curr_metric[body_id], prev_metric[body_id]
             r = 0.0
             # Alive reward
             if curr["TimeAlive"] == 1024:
@@ -43,24 +77,24 @@ class RewardParser:
                 r += (curr[p] - prev[p]) * 0.1 * curr[p]
             # Equipment reward
             for e in EQUIPMENT:
-                delta = curr[e] - self.best_ever_equip_level[agent_id][e]
+                delta = curr[e] - self.best_ever_equip_level[body_id][e]
                 if delta > 0:
                     r += delta * 0.1 * curr[e]
-                    self.best_ever_equip_level[agent_id][e] = curr[e]
+                    self.best_ever_equip_level[body_id][e] = curr[e]
             # DamageTaken penalty
             r -= (curr["DamageTaken"] - prev["DamageTaken"]) * 0.01
             # Starvation penalty
-            if agent_id in food and food[agent_id] == 0:
+            if body_id in food and food[body_id] == 0:
                 r -= 0.1
-            if agent_id in water and water[agent_id] == 0:
+            if body_id in water and water[body_id] == 0:
                 r -= 0.1
 
             # phase2 only
             if self.phase == "phase2":
                 # Death penalty
-                if agent_id in done and done[agent_id]:
+                if body_id in done and done[body_id]:
                     r -= 5.0
-            reward[agent_id] = r
+            reward[body_id] = r
         return reward
 
     def extract_info_from_obs(self, obs: Dict[int, Dict[str, np.ndarray]]):

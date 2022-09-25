@@ -228,6 +228,7 @@ def act(
                 # unbatch
                 agent_output = unbatch(agent_output_batch, agent_ids)
                 # extract actions
+
                 actions = {
                     agent_id: {
                         key: agent_output[agent_id][key].item()
