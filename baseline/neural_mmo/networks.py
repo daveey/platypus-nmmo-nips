@@ -12,8 +12,8 @@ class ActionHead(nn.Module):
     def __init__(self, input_dim: int, num_bodies: int):
         super().__init__()
         for b in range(num_bodies):
-          self.name2dim[f"move:{b}"] = 5
-          self.name2dim[f"attack_target:{b}"] = 16
+          self.name2dim[f"move"] = 5
+          self.name2dim[f"attack_target"] = 16
 
         self.heads = nn.ModuleDict({
             name: nn.Linear(input_dim, output_dim)
@@ -94,19 +94,18 @@ class NMMONet(nn.Module):
         input_dict: Dict,
         training: bool = False,
     ) -> Dict[str, torch.Tensor]:
-        T, B, *_ = input_dict["terrain:0"].shape
-        # b_input_dict = {k.split(":")[0]: v for k,v in input_dict.items()}
+        T, B, *_ = input_dict["terrain"].shape
         embeddings = []
         for body in range(self.num_bodies):
             local_map_emb = self.local_map_embedding({
-                "terrain": input_dict[f"terrain:{body}"],
-                "death_fog_damage": input_dict[f"death_fog_damage:{body}"],
-                "reachable": input_dict[f"reachable:{body}"],
-                "entity_population": input_dict[f"entity_population:{body}"],
+                "terrain": input_dict["terrain"][:,:,body,:],
+                "death_fog_damage": input_dict["death_fog_damage"][:,:,body,:],
+                "reachable": input_dict["reachable"][:,:,body,:],
+                "entity_population": input_dict["entity_population"][:,:,body,:],
             })
             self_entity_emb, other_entity_emb = self.entity_embedding({
-                "self_entity": input_dict[f"self_entity:{body}"],
-                "other_entity": input_dict[f"other_entity:{body}"],
+                "self_entity": input_dict[f"self_entity"][:,:,body,:],
+                "other_entity": input_dict[f"other_entity"][:,:,body,:],
             })
             embeddings.extend([local_map_emb, self_entity_emb, other_entity_emb])
 
@@ -140,4 +139,5 @@ class NMMONet(nn.Module):
                 output[f"{key}_logp"] = logprob
             else:
                 output[f"{key}_logits"] = val
+
         return output

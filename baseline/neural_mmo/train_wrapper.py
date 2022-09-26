@@ -35,20 +35,16 @@ class TrainEnv(Wrapper):
         self._setup()
 
     def _setup(self):
-        observation_space, action_space, dummy_body_feature, dummy_agent_feature = {}, {}, {}, {}
-        for body in range(self.num_team_member):
-            for o_key, val in self.feature_parser.spec.items():
-                key = f"{o_key}:{body}"
-                observation_space[key] = val
-                dummy_body_feature[o_key] = np.zeros(shape=val.shape, dtype=val.dtype)
-                dummy_agent_feature[key] = np.zeros(shape=val.shape, dtype=val.dtype)
-                if key.startswith("va_"):
-                    key_ = key.replace("va_", "")
-                    action_space[key_] = spaces.Discrete(val.shape[0])
+        observation_space, action_space, dummy_body_feature = {}, {}, {}
+        for key, val in self.feature_parser.spec.items():
+            observation_space[key] = val
+            dummy_body_feature[key] = np.zeros(shape=val.shape, dtype=val.dtype)
+            if key.startswith("va_"):
+                key_ = key.replace("va_", "")
+                action_space[key_] = spaces.MultiDiscrete(self.num_team_member * [val.shape[0]])
         self.observation_space = spaces.Dict(observation_space)
         self.action_space = spaces.Dict(action_space)
         self._dummy_body_feature = dummy_body_feature
-        self._dummy_agent_feature = dummy_agent_feature
 
     def reset(self) -> Dict[int, Dict[str, ndarray]]:
         self._step = 0
@@ -134,8 +130,12 @@ class TrainEnv(Wrapper):
             for pid in range(self.num_team_member):
                 pobs = team_obs.get(pid, self._dummy_body_feature)
                 for k,v in pobs.items():
-                    obs[tid][f"{k}:{pid}"] = v
-
+                    if k not in obs[tid]:
+                        obs[tid][k] = []
+                    obs[tid][k].append(v)
+            for k in obs[tid]:
+                obs[tid][k] = np.stack(obs[tid][k])
+                
         return obs
 
     def _actions_mb_agent_to_team(self, mb_actions: Dict[int, Dict[str, Any]]) -> Dict[int, Dict[int, Dict[str, Any]]]:
@@ -267,4 +267,4 @@ class MyMeleeTeam(ScriptedTeam):
 
 
 class TrainConfig(CompetitionConfig):
-    MAP_N = 400
+    MAP_N = 4
