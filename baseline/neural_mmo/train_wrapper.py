@@ -35,16 +35,18 @@ class TrainEnv(Wrapper):
         self._setup()
 
     def _setup(self):
-        observation_space, action_space, dummy_body_feature = {}, {}, {}
+        observation_space, action_space, dummy_body_feature, dummy_agent_feature = {}, {}, {}, {}
         for key, val in self.feature_parser.spec.items():
             observation_space[key] = val
-            dummy_body_feature[key] = np.zeros(shape=val.shape, dtype=val.dtype)
+            dummy_body_feature[key] = np.zeros(shape=val.shape[1:], dtype=val.dtype)
+            dummy_agent_feature[key] = np.zeros(shape=val.shape, dtype=val.dtype)
             if key.startswith("va_"):
                 key_ = key.replace("va_", "")
                 action_space[key_] = spaces.MultiDiscrete(self.num_team_member * [val.shape[0]])
         self.observation_space = spaces.Dict(observation_space)
         self.action_space = spaces.Dict(action_space)
         self._dummy_body_feature = dummy_body_feature
+        self._dummy_agent_feature = dummy_agent_feature
 
     def reset(self) -> Dict[int, Dict[str, ndarray]]:
         self._step = 0
@@ -135,6 +137,7 @@ class TrainEnv(Wrapper):
                     obs[tid][k].append(v)
             for k in obs[tid]:
                 obs[tid][k] = np.stack(obs[tid][k])
+
                 
         return obs
 
@@ -142,9 +145,9 @@ class TrainEnv(Wrapper):
         team_actions = {}
         for tid, team_mb_actions in mb_actions.items():
             team_actions[tid] = {p: {} for p in range(self.num_team_member)}
-            for mb_key, val in team_mb_actions.items():
-                key, pid = mb_key.split(":")
-                team_actions[tid][int(pid)][key] = val
+            for key, val in team_mb_actions.items():
+                for pid in range(self.num_team_member):
+                    team_actions[tid][pid][key] = val[pid].item()
         return team_actions
 
     def _flatten(self, xs: Dict[int, Dict[int, Any]]) -> Dict[int, Any]:

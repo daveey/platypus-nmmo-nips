@@ -11,19 +11,18 @@ class ActionHead(nn.Module):
 
     def __init__(self, input_dim: int, num_bodies: int):
         super().__init__()
-        for b in range(num_bodies):
-          self.name2dim[f"move"] = 5
-          self.name2dim[f"attack_target"] = 16
+        self.num_bodies = num_bodies
+        self.name2dim[f"move"] = 5
+        self.name2dim[f"attack_target"] = 16
 
         self.heads = nn.ModuleDict({
-            name: nn.Linear(input_dim, output_dim)
-            for name, output_dim in self.name2dim.items()
+            f"{name}:{body}": nn.Linear(input_dim, output_dim)
+            for name, output_dim in self.name2dim.items() for body in range(num_bodies)
         })
 
     def forward(self, x) -> Dict[str, torch.Tensor]:
-        out = {name: self.heads[name](x) for name in self.name2dim}
+        out = {f"{name}:{body}": self.heads[f"{name}:{body}"](x) for name in self.name2dim for body in range(self.num_bodies)}
         return out
-
 
 class NMMONet(nn.Module):
     def __init__(self):
@@ -112,32 +111,32 @@ class NMMONet(nn.Module):
         x = torch.cat(embeddings, dim=-1)
         x = F.relu(self.fc(x))
 
-        # T, B, *_ = b_input_dict["terrain"].shape
-        # print("terrain", b_input_dict["terrain"].shape)
-        # local_map_emb = self.local_map_embedding(b_input_dict)
-        # print("local_map", local_map_emb.shape)
-        # self_entity_emb, other_entity_emb = self.entity_embedding(b_input_dict)
-        # print("self_entity_emb", self_entity_emb.shape)
-
-        # x = torch.cat([local_map_emb, self_entity_emb, other_entity_emb],
-        #               dim=-1)
-        # print("x", x.shape)
-        # x = F.relu(self.fc(x))
-        # print("xfc", x.shape)
-       
-
         logits = self.action_head(x)
         value = self.value_head(x).view(T, B)
 
-        output = {"value": value}
+        output = {}
         for key, val in logits.items():
+            key, body = key.split(":")
+            body = int(body)
             if not training:
-                dist = MaskedPolicy(val, input_dict[f"va_{key}"])
+                dist = MaskedPolicy(val, input_dict[f"va_{key}"][:,:,body,:])
                 action = dist.sample()
                 logprob = dist.log_prob(action)
-                output[key] = action
-                output[f"{key}_logp"] = logprob
+                if key not in output:
+                    output[key] = []
+                    output[f"{key}_logp"] = []
+                output[key].append(action)
+                output[f"{key}_logp"].append(logprob)
             else:
-                output[f"{key}_logits"] = val
+                if f"{key}_logits" not in output:
+                    output[f"{key}_logits"] = []
+                output[f"{key}_logits"].append(val)
+
+        for k, v in output.items():
+            assert len(output[k]) == self.num_bodies, f"k: {k}, o: {output[k]}"
+            output[k] = torch.stack(v, dim=2)
+
+        # output["value"] = torch.stack(self.num_bodies * [value], dim=-1)
+        output["value"] = value
 
         return output

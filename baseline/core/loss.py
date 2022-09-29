@@ -37,12 +37,13 @@ def compute_ppo_loss(
     entropy_loss = torch.tensor(0, dtype=torch.float32, device=device)
     policy_clip_frac = torch.tensor(0, dtype=torch.float32, device=device)
 
-    adv = advantage
-    upgo_adv = upgo_advantage
+    adv = torch.unsqueeze(advantage, -1).expand(-1, -1, 8)
+    upgo_adv = torch.unsqueeze(upgo_advantage, -1).expand(-1, -1, 8)
 
     if mask is None:
         mask = torch.ones_like(adv)
-
+    mask = torch.unsqueeze(mask, -1).expand(-1, -1, 8)
+    
     for i, logit in enumerate(logits):
         action = actions[i]
         behaviour_logp = behaviour_policy_logprobs[i]
@@ -52,6 +53,7 @@ def compute_ppo_loss(
             va = valid_actions[i]
 
         dist = MaskedPolicy(logit, va)
+        
         logp = dist.log_prob(action)
         ratio = torch.exp(logp - behaviour_logp)
         # policy loss
@@ -77,7 +79,7 @@ def compute_ppo_loss(
             (ratio.gt(1 + clip_ratio) | ratio.lt(1 - clip_ratio)).float())
 
     # value loss
-    value_loss = compute_value_loss(value, target_value, mask=mask)
+    value_loss = compute_value_loss(value, target_value, mask=mask[:,:,1])
     loss = policy_loss + value_coef * value_loss + entropy_coef * entropy_loss + upgo_coef * upgo_loss
 
     # log

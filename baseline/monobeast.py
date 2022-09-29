@@ -119,8 +119,8 @@ def create_buffers(
     }
     action_specs = {}
     for key, val in action_space.items():
-        action_specs[key] = dict(size=(T, ), dtype=torch.int64)
-        action_specs[f"{key}_logp"] = dict(size=(T, ), dtype=torch.float32)
+        action_specs[key] = dict(size=(T, *val.shape), dtype=torch.int64)
+        action_specs[f"{key}_logp"] = dict(size=(T, *val.shape), dtype=torch.float32)
     specs = dict(
         reward=dict(size=(T, ), dtype=torch.float32),
         done=dict(size=(T, ), dtype=torch.bool),
@@ -231,7 +231,7 @@ def act(
 
                 actions = {
                     agent_id: {
-                        key: agent_output[agent_id][key].item()
+                        key: agent_output[agent_id][key][0]
                         for key in action_space.keys()
                     }
                     for agent_id in agent_output
