@@ -9,23 +9,6 @@ EQUIPMENT = [
 ]
 PROFESSION = ["MeleeLevel"]
 
-class TeamRewardParser:
-    def __init__(self, phase: str = "phase1"):
-        self._agent_reward_parser = RewardParser(phase)
-
-    def reset(self):
-        self._agent_reward_parser.reset()
-    
-    def parse(
-        self,
-        prev_metric: Dict[int, Metrics],
-        curr_metric: Dict[int, Metrics],
-        obs: Dict[int, Dict[str, np.ndarray]],
-        step: int,
-        done: int,
-    ) -> Dict[int, float]:
-        return self._agent_reward_parser.parse()
-    
 class RewardParser:
     def __init__(self, phase: str = "phase1"):
         assert phase in ["phase1", "phase2"]
@@ -48,7 +31,7 @@ class RewardParser:
         for agent_id in curr_metric:
             if agent_id in obs:
                 agent_rewards = self._parse_agent(prev_metric[agent_id], curr_metric[agent_id], obs[agent_id], step, done[agent_id])
-                reward[agent_id] = sum(agent_rewards.values())
+                reward[agent_id] = sum(agent_rewards.values()) / 8
             else:
                 reward[agent_id] = 0
 
@@ -94,7 +77,7 @@ class RewardParser:
                 # Death penalty
                 if body_id in done and done[body_id]:
                     r -= 5.0
-            reward[body_id] = r / 8
+            reward[body_id] = r
         return reward
 
     def extract_info_from_obs(self, obs: Dict[int, Dict[str, np.ndarray]]):

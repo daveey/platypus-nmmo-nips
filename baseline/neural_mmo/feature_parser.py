@@ -39,7 +39,7 @@ class FeatureParser:
         self,
         observations: Dict[int, Dict[str, ndarray]],
         step: int,
-    ) -> Dict[str, ndarray]:
+    ) -> Dict[int, Dict[str, ndarray]]:
         ret = {}
         for agent_id in observations:
             terrain, death_fog_damage, population, reachable, va_move = self.parse_local_map(
