@@ -94,7 +94,7 @@ class RewardParser:
                 # Death penalty
                 if body_id in done and done[body_id]:
                     r -= 5.0
-            reward[body_id] = r
+            reward[body_id] = r / 8
         return reward
 
     def extract_info_from_obs(self, obs: Dict[int, Dict[str, np.ndarray]]):
