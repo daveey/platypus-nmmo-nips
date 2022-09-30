@@ -44,6 +44,7 @@ ENV BASH_ENV /root/.bashrc
 
 ADD . /src
 RUN pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html 
+RUN pip install --ignore-requires-python openskill==0.2.0a0
 RUN pip install -r /src/requirements.txt
 
 
