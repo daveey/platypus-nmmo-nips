@@ -63,7 +63,7 @@ RUN pip install -r /src/requirements.txt
 ENV OMP_NUM_THREADS 1
 
 # Run.
-CMD ["bash", "-c", "sleep", "99999999"]
+CMD ["bash", "-c", "sleep 99999999"]
 
 # Docker commands:
 #   docker rm torchbeast -v
