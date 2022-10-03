@@ -26,6 +26,12 @@ python eval.py
 
 ![phase2](phase2.png)
 
+## Testing
+
+Run tests:
+```bash
+python -m unittest discover -s tests -t .
+```
 
 ## Implementation Details
 
