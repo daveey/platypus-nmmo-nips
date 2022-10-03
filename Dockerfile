@@ -19,7 +19,6 @@ RUN set -e; \
     wget \
     tini \
     lsb-release; \
-    zlib1g-dev \
     GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`; \
     echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | \
     tee /etc/apt/sources.list.d/gcsfuse.list; \
