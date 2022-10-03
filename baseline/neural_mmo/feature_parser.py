@@ -9,22 +9,29 @@ from numpy import ndarray
 class FeatureParser:
     NEIGHBOR = [(6, 7), (8, 7), (7, 8), (7, 6)]  # north, south, east, west
     OBSTACLE = (0, 1, 5, 14, 15)  # lava, water, stone,
+    NUM_BODIES = 8
     spec = {
         "terrain":
-        spaces.Box(low=0, high=15, shape=(15, 15), dtype=np.int64),
+        spaces.Box(low=0, high=15, shape=(NUM_BODIES, 15, 15), dtype=np.int64),
         "reachable":
-        spaces.Box(low=0, high=1, shape=(15, 15), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 15, 15), dtype=np.float32),
         "death_fog_damage":
-        spaces.Box(low=0, high=1, shape=(15, 15), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 15, 15), dtype=np.float32),
         "entity_population":
-        spaces.Box(low=0, high=5, shape=(15, 15), dtype=np.int64),
+        spaces.Box(low=0, high=5, shape=(NUM_BODIES, 15, 15), dtype=np.int64),
         "self_entity":
-        spaces.Box(low=0, high=1, shape=(1, 26), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 1, 26), dtype=np.float32),
         "other_entity":
-        spaces.Box(low=0, high=1, shape=(15, 26), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 15, 26), dtype=np.float32),
         "va_move":
-        spaces.Box(low=0, high=1, shape=(5, ), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 5, ), dtype=np.float32),
         "va_attack_target":
+        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 16, ), dtype=np.float32),
+    }
+    action_spec = {
+        "move":
+        spaces.Box(low=0, high=1, shape=(5, ), dtype=np.float32),
+        "attack_target":
         spaces.Box(low=0, high=1, shape=(16, ), dtype=np.float32),
     }
 
@@ -32,7 +39,7 @@ class FeatureParser:
         self,
         observations: Dict[int, Dict[str, ndarray]],
         step: int,
-    ) -> Dict[str, ndarray]:
+    ) -> Dict[int, Dict[str, ndarray]]:
         ret = {}
         for agent_id in observations:
             terrain, death_fog_damage, population, reachable, va_move = self.parse_local_map(
@@ -59,13 +66,13 @@ class FeatureParser:
     ) -> Tuple[ndarray, ndarray]:
         tiles = observation["Tile"]["Continuous"]
         entities = observation["Entity"]["Continuous"]
-        terrain = np.zeros(shape=self.spec["terrain"].shape,
+        terrain = np.zeros(shape=self.spec["terrain"].shape[1:],
                            dtype=self.spec["terrain"].dtype)
-        death_fog_damage = np.zeros(shape=self.spec["death_fog_damage"].shape,
+        death_fog_damage = np.zeros(shape=self.spec["death_fog_damage"].shape[1:],
                                     dtype=self.spec["death_fog_damage"].dtype)
-        population = np.zeros(shape=self.spec["entity_population"].shape,
+        population = np.zeros(shape=self.spec["entity_population"].shape[1:],
                               dtype=self.spec["entity_population"].dtype)
-        va = np.ones(shape=self.spec["va_move"].shape,
+        va = np.ones(shape=self.spec["va_move"].shape[1:],
                      dtype=self.spec["va_move"].dtype)
 
         # terrain, death_fog
@@ -108,7 +115,7 @@ class FeatureParser:
     ) -> Tuple[ndarray, ndarray]:
         cent = CompetitionConfig.MAP_CENTER // 2
         entities = observation["Entity"]["Continuous"]
-        va = np.zeros(shape=self.spec["va_attack_target"].shape,
+        va = np.zeros(shape=self.spec["va_attack_target"].shape[1:],
                       dtype=self.spec["va_attack_target"].dtype)
         va[0] = 1.0
 

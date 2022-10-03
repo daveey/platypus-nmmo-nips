@@ -7,10 +7,15 @@ from core.mask import MaskedPolicy
 
 
 class ActionHead(nn.Module):
-    name2dim = {"move": 5, "attack_target": 16}
+    name2dim = {}
 
-    def __init__(self, input_dim: int):
+    def __init__(self, input_dim: int, num_bodies: int):
         super().__init__()
+        self.num_bodies = num_bodies
+        for b in range(num_bodies):
+            self.name2dim[f"move:{b}"] = 5
+            self.name2dim[f"attack_target:{b}"] = 16
+
         self.heads = nn.ModuleDict({
             name: nn.Linear(input_dim, output_dim)
             for name, output_dim in self.name2dim.items()
@@ -20,10 +25,11 @@ class ActionHead(nn.Module):
         out = {name: self.heads[name](x) for name in self.name2dim}
         return out
 
-
 class NMMONet(nn.Module):
     def __init__(self):
         super().__init__()
+        self.num_bodies = 8
+
         self.local_map_cnn = nn.Sequential(
             nn.Conv2d(24, 32, 3, 2, 1),
             nn.ReLU(),
@@ -40,8 +46,8 @@ class NMMONet(nn.Module):
         self.other_entity_fc1 = nn.Linear(26, 32)
         self.other_entity_fc2 = nn.Linear(15 * 32, 32)
 
-        self.fc = nn.Linear(64 + 32 + 32, 64)
-        self.action_head = ActionHead(64)
+        self.fc = nn.Linear(self.num_bodies * (64 + 32 + 32), 64)
+        self.action_head = ActionHead(64, self.num_bodies)
         self.value_head = nn.Linear(64, 1)
 
     def local_map_embedding(self, input_dict):
@@ -89,24 +95,39 @@ class NMMONet(nn.Module):
         training: bool = False,
     ) -> Dict[str, torch.Tensor]:
         T, B, *_ = input_dict["terrain"].shape
-        local_map_emb = self.local_map_embedding(input_dict)
-        self_entity_emb, other_entity_emb = self.entity_embedding(input_dict)
+        embeddings = []
+        for body in range(self.num_bodies):
+            local_map_emb = self.local_map_embedding({
+                "terrain": input_dict["terrain"][:,:,body,:],
+                "death_fog_damage": input_dict["death_fog_damage"][:,:,body,:],
+                "reachable": input_dict["reachable"][:,:,body,:],
+                "entity_population": input_dict["entity_population"][:,:,body,:],
+            })
+            self_entity_emb, other_entity_emb = self.entity_embedding({
+                "self_entity": input_dict[f"self_entity"][:,:,body,:],
+                "other_entity": input_dict[f"other_entity"][:,:,body,:],
+            })
+            embeddings.extend([local_map_emb, self_entity_emb, other_entity_emb])
 
-        x = torch.cat([local_map_emb, self_entity_emb, other_entity_emb],
-                      dim=-1)
+        x = torch.cat(embeddings, dim=-1)
         x = F.relu(self.fc(x))
 
         logits = self.action_head(x)
         value = self.value_head(x).view(T, B)
 
-        output = {"value": value}
+        output = {}
         for key, val in logits.items():
+            action_name, body = key.split(":")
+            body = int(body)
             if not training:
-                dist = MaskedPolicy(val, input_dict[f"va_{key}"])
+                dist = MaskedPolicy(val, input_dict[f"va_{action_name}"][:,:,body,:])
                 action = dist.sample()
                 logprob = dist.log_prob(action)
-                output[key] = action
                 output[f"{key}_logp"] = logprob
+                output[key] = action
             else:
                 output[f"{key}_logits"] = val
+
+        output["value"] = value
+
         return output
