@@ -1,4 +1,3 @@
-rm -r results/nmmo
 python monobeast.py \
     --total_steps 1000000000 \
     --learning_rate 0.0001 \
@@ -15,6 +14,6 @@ python monobeast.py \
     --restart_actor_interval 18000 \
     --reward_setting phase1 \
     --xpid nmmo \
-    --checkpoint_path ./checkpoints/model_2757376.pt
+    #--checkpoint_path ./checkpoints/model_2757376.pt
     
     
