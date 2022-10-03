@@ -32,12 +32,12 @@ spec:
           resources:
             limits:
               nvidia.com/gpu: 1
-          lifecycle:
-            postStart:
-              exec:
-                command: ["gcsfuse", "-o", "nonempty", "platypus-nmmo-nips", "/mnt/platypus-nmmo-nips"]
-            preStop:
-              exec:
-                command: ["fusermount", "-u", "/mnt/platypus-nmmo-nips"]
+          # lifecycle:
+          #   postStart:
+          #     exec:
+          #       command: ["gcsfuse", "-o", "nonempty", "platypus-nmmo-nips", "/mnt/shared"]
+          #   preStop:
+          #     exec:
+          #       command: ["fusermount", "-u", "/mnt/shared"]
 
 
