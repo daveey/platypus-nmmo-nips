@@ -6,7 +6,7 @@ python monobeast.py \
     --clip_ratio 0.2 \
     --num_selfplay_team 8 \
     --data_reuse 8 \
-    --num_actors 25 \
+    --num_actors 10 \
     --batch_size 512 \
     --unroll_length 32 \
     --savedir ./results \
