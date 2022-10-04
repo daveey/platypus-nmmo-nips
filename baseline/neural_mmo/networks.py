@@ -46,7 +46,14 @@ class NMMONet(nn.Module):
         self.other_entity_fc1 = nn.Linear(26, 32)
         self.other_entity_fc2 = nn.Linear(15 * 32, 32)
 
-        self.fc = nn.Linear(self.num_bodies * (64 + 32 + 32), 64)
+        self.fc = nn.Sequential(
+            nn.Linear(self.num_bodies * (64 + 32 + 32), 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU()
+        )
         self.action_head = ActionHead(64, self.num_bodies)
         self.value_head = nn.Linear(64, 1)
 

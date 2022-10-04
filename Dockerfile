@@ -62,6 +62,7 @@ RUN mkdir /mnt/shared
 ENV OMP_NUM_THREADS 1
 ADD . src
 # Run.
+WORKDIR /src/baseline
 CMD ["bash", "-c", "sleep 99999999"]
 
 # Docker commands:
