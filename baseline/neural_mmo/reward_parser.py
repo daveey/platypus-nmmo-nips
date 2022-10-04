@@ -11,7 +11,7 @@ PROFESSION = ["MeleeLevel"]
 
 class RewardParser:
     def __init__(self, phase: str = "phase1"):
-        assert phase in ["phase1", "phase2"]
+        assert phase in ["phase1", "phase2", "simple"]
         self.phase = phase
         self.best_ever_equip_level = defaultdict(
             lambda: defaultdict(lambda: 0))
@@ -27,15 +27,15 @@ class RewardParser:
         step: int,
         done: Dict[int, Dict[int, bool]],
     ) -> Dict[int, float]:
-        reward = {}
-        for agent_id in curr_metric:
-            if agent_id in obs:
-                agent_rewards = self._parse_agent(prev_metric[agent_id], curr_metric[agent_id], obs[agent_id], step, done[agent_id])
-                reward[agent_id] = sum(agent_rewards.values()) / 8
-            else:
-                reward[agent_id] = 0
+        # reward = {}
+        # for agent_id in curr_metric:
+        #     if agent_id in obs:
+        #         agent_rewards = self._parse_agent(prev_metric[agent_id], curr_metric[agent_id], obs[agent_id], step, done[agent_id])
+        #         reward[agent_id] = sum(agent_rewards.values()) / 8
+        #     else:
+        #         reward[agent_id] = 0
 
-        return reward
+        return {a: float(a in obs) / 1024 for a in curr_metric}
 
     def _parse_agent(
         self,
