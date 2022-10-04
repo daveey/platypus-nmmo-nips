@@ -17,7 +17,13 @@ class ActionHead(nn.Module):
             self.name2dim[f"attack_target:{b}"] = 16
 
         self.heads = nn.ModuleDict({
-            name: nn.Linear(input_dim, output_dim)
+            name: nn.Sequential(
+                nn.Linear(input_dim, 64),
+                nn.ReLU(),
+                nn.Linear(64, 64),
+                nn.ReLU(),
+                nn.Linear(64, output_dim),
+            )
             for name, output_dim in self.name2dim.items()
         })
 
@@ -55,7 +61,13 @@ class NMMONet(nn.Module):
             nn.ReLU()
         )
         self.action_head = ActionHead(64, self.num_bodies)
-        self.value_head = nn.Linear(64, 1)
+        self.value_head = nn.Sequential(
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1)
+        )
 
     def local_map_embedding(self, input_dict):
         terrain = input_dict["terrain"]
@@ -117,7 +129,7 @@ class NMMONet(nn.Module):
             embeddings.extend([local_map_emb, self_entity_emb, other_entity_emb])
 
         x = torch.cat(embeddings, dim=-1)
-        x = F.relu(self.fc(x))
+        x = self.fc(x)
 
         logits = self.action_head(x)
         value = self.value_head(x).view(T, B)

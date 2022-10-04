@@ -28,7 +28,6 @@ RUN set -e; \
     apt-get install -y gcsfuse \
     && apt-get clean
 
-WORKDIR /src/baseline
 
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 
