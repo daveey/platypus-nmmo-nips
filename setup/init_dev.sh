@@ -11,5 +11,5 @@ sudo docker run -d --name platypus  -v /mnt/shared:/mnt/shared --gpus 1 --shm-si
 de -c "cd src/baseline; python plot.py; mv plot.png /mnt/shared/"
 
 
- de -c "ls -t src/baseline/results/nmmo | grep model | head -n 5" 
- de -c "cd src/baseline; python eval.py --model results/nmmo/model_96512.pt"
+ de -c "ls -t results/nmmo | grep model | head -n 5" 
+ de -c "cd python eval.py --model results/nmmo/model_96512.pt"
