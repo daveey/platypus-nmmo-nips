@@ -27,13 +27,19 @@ class RewardParser:
         step: int,
         done: Dict[int, Dict[int, bool]],
     ) -> Dict[int, float]:
-        # reward = {}
-        # for agent_id in curr_metric:
-        #     if agent_id in obs:
+        reward = {}
+        for agent_id in curr_metric:
+            if agent_id in obs:
+                life = 1.0 / 1024
+                kills = sum([
+                    curr_metric[agent_id][b]["PlayerDefeats"] -  curr_metric[agent_id][b]["PlayerDefeats"]
+                        for b in range(8)]
+                )
+                reward[agent_id] = life + kills
         #         agent_rewards = self._parse_agent(prev_metric[agent_id], curr_metric[agent_id], obs[agent_id], step, done[agent_id])
         #         reward[agent_id] = sum(agent_rewards.values()) / 8
-        #     else:
-        #         reward[agent_id] = 0
+            else:
+                reward[agent_id] = 0
 
         return {a: float(a in obs) / 1024 for a in curr_metric}
 
