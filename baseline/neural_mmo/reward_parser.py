@@ -71,6 +71,6 @@ class RewardParser:
         }
 
     def extract_info_from_obs(self, obs: Dict[int, Dict[str, np.ndarray]]):
-        food = {i: obs[i]["self_entity"][i % 8][0, 11] for i in obs}
-        water = {i: obs[i]["self_entity"][i % 8][0, 12] for i in obs}
+        food = {i: obs[i]["self_entity"][0][0, 11] for i in obs}
+        water = {i: obs[i]["self_entity"][0][0, 12] for i in obs}
         return food, water
