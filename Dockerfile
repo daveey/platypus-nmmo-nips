@@ -28,7 +28,6 @@ RUN set -e; \
     apt-get install -y gcsfuse \
     && apt-get clean
 
-WORKDIR /src/baseline
 
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 
@@ -61,6 +60,8 @@ RUN mkdir /mnt/shared
 
 ENV OMP_NUM_THREADS 1
 ADD . src
+WORKDIR /src/baseline
+
 # Run.
 CMD ["bash", "-c", "sleep 99999999"]
 
