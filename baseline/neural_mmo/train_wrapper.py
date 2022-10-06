@@ -35,16 +35,14 @@ class TrainEnv(Wrapper):
         self._setup()
 
     def _setup(self):
-        observation_space, action_space, dummy_feature = {}, {}, {}
+        observation_space, action_space = {}, {}
         for key, val in self.feature_parser.spec.items():
             observation_space[key] = val
-            dummy_feature[key] = np.zeros(shape=val.shape, dtype=val.dtype)
             if key.startswith("va_"):
                 key_ = key.replace("va_", "")
                 action_space[key_] = spaces.Discrete(val.shape[0])
         self.observation_space = spaces.Dict(observation_space)
         self.action_space = spaces.Dict(action_space)
-        self._dummy_feature = dummy_feature
 
     def reset(self) -> Dict[int, Dict[str, ndarray]]:
         self._step = 0
@@ -89,8 +87,6 @@ class TrainEnv(Wrapper):
         # padding
         info = {uid: {} for uid in self.agents}
         for uid in self.agents:
-            if uid not in obs:
-                obs[uid] = self._dummy_feature
             if uid not in done:
                 reward[uid] = 0
                 done[uid] = True

@@ -26,7 +26,7 @@ class RewardParser:
         curr_metric: Dict[int, Metrics],
         obs: Dict[int, Dict[str, np.ndarray]],
         step: int,
-        done: int,
+        done: Dict[int, bool]
     ) -> Dict[int, float]:
         reward = {}
         team_reward = { t: 0 for t in range(8) }
