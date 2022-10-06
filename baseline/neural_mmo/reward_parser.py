@@ -62,7 +62,10 @@ class RewardParser:
                 if agent_id in done and done[agent_id]:
                     r -= 5.0
             reward[agent_id] = r
-            team_reward[agent_id // 8] += r
+
+            if agent_id in done and not done[agent_id]:
+                team_reward[agent_id // 8] += r
+    
         return {
             a: reward[a] / 10 + team_reward[a // 8] / 8 for a in reward
         }
