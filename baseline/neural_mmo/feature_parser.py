@@ -67,12 +67,16 @@ class FeatureParser:
         ret = {}
         for agent_id in range(64):
             ret[agent_id] = {}
+            team_id = agent_id // 8
+            body_id = agent_id % 8
             for k in self.spec:
                 if k.startswith("va_"):
                     ret[agent_id][k] = agent_obs.get(agent_id, self._dummy_features)[k]
                 else:
+                    obs = [ o[k] for o in team_obs[agent_id // 8]]
                     ret[agent_id][k] = np.stack(
-                        [ o[k] for o in team_obs[agent_id // 8] ])
+                        [obs[body_id]] + obs[:body_id] + obs[body_id+1:]
+                    )
 
         return ret
 
