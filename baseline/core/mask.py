@@ -10,7 +10,6 @@ class MaskedPolicy:
             logits = valid_actions * logits + (1 - valid_actions) * (-1e8)
             self.logp = logits - logits.logsumexp(dim=-1, keepdim=True)
 
-
     def sample(self):
         # https://arxiv.org/abs/1411.0030
         u = torch.rand_like(self.logp, device=self.logp.device)

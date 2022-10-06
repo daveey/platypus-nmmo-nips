@@ -10,9 +10,9 @@ from neurips2022nmmo.scripted import Melee
 from neurips2022nmmo.scripted.baselines import Combat
 from neurips2022nmmo.scripted.scripted_team import ScriptedTeam
 from numpy import ndarray
-import torch
 
 from neural_mmo import FeatureParser, RewardParser
+
 
 class TrainEnv(Wrapper):
     max_step = 1024
@@ -35,18 +35,16 @@ class TrainEnv(Wrapper):
         self._setup()
 
     def _setup(self):
-        observation_space, action_space, dummy_body_feature, dummy_agent_feature = {}, {}, {}, {}
+        observation_space, action_space, dummy_feature = {}, {}, {}
         for key, val in self.feature_parser.spec.items():
             observation_space[key] = val
-            dummy_body_feature[key] = np.zeros(shape=val.shape[1:], dtype=val.dtype)
-            dummy_agent_feature[key] = np.zeros(shape=val.shape, dtype=val.dtype)
-        for key, val in self.feature_parser.action_spec.items():
-            for body in range(self.num_team_member):
-                action_space[f"{key}:{body}"] = spaces.Discrete(val.shape[0])
+            dummy_feature[key] = np.zeros(shape=val.shape, dtype=val.dtype)
+            if key.startswith("va_"):
+                key_ = key.replace("va_", "")
+                action_space[key_] = spaces.Discrete(val.shape[0])
         self.observation_space = spaces.Dict(observation_space)
         self.action_space = spaces.Dict(action_space)
-        self._dummy_body_feature = dummy_body_feature
-        self._dummy_agent_feature = dummy_agent_feature
+        self._dummy_feature = dummy_feature
 
     def reset(self) -> Dict[int, Dict[str, ndarray]]:
         self._step = 0
@@ -54,10 +52,9 @@ class TrainEnv(Wrapper):
         self.reset_arena(self.config)
 
         raw_obs = super().reset()
-        parsed_obs = self._parse_team_obs(self._get(raw_obs), self._step)
-        obs = self._obs_team_to_mb_agent(parsed_obs)
-
-        metrics = self._get(self.metrices_by_team())
+        obs = self._flatten(self._get(raw_obs))
+        obs = self.feature_parser.parse(obs, self._step)
+        metrics = self._flatten(self._get(self.metrices_by_team()))
 
         self.agents = list(obs.keys())
         self._prev_raw_obs = raw_obs
@@ -70,7 +67,7 @@ class TrainEnv(Wrapper):
         # preprocess action
         decisions = self.get_opponent_decision(self._prev_raw_obs)
         actions = self.transform_action(
-            self._actions_mb_agent_to_team(actions),
+            self._unflatten(actions),
             observations=self._prev_raw_obs,
             my_script=self.myself,
         )
@@ -79,14 +76,12 @@ class TrainEnv(Wrapper):
         # step
         raw_obs, _, raw_done, _ = super().step(decisions)
 
-        parsed_obs = self._parse_team_obs(self._get(raw_obs), self._step)
-        obs = self._obs_team_to_mb_agent(parsed_obs)
-
-        done = self._get(raw_done)
-        metrics = self._get(self.metrices_by_team())
-        reward = self.reward_parser.parse(self._prev_metrics, metrics, parsed_obs,
+        obs = self._flatten(self._get(raw_obs))
+        obs = self.feature_parser.parse(obs, self._step)
+        done = self._flatten(self._get(raw_done))
+        metrics = self._flatten(self._get(self.metrices_by_team()))
+        reward = self.reward_parser.parse(self._prev_metrics, metrics, obs,
                                           self._step, done)
-        done = {k: all(dones) for k, dones in done.items()}
 
         self._prev_raw_obs = raw_obs
         self._prev_metrics = metrics
@@ -95,7 +90,7 @@ class TrainEnv(Wrapper):
         info = {uid: {} for uid in self.agents}
         for uid in self.agents:
             if uid not in obs:
-                obs[uid] = self._dummy_agent_feature
+                obs[uid] = self._dummy_feature
             if uid not in done:
                 reward[uid] = 0
                 done[uid] = True
@@ -117,38 +112,6 @@ class TrainEnv(Wrapper):
             if tid in xs:
                 ret[tid] = xs[tid]
         return ret
-
-    def _parse_team_obs(self, team_obs: Dict[int, Dict[int, Dict[str, Any]]], step) -> Dict[int, Dict[int, Dict[str, Any]]]:
-        obs = {}
-        for tid, team_obs in team_obs.items():
-            del team_obs["stat"]
-            obs[tid] = self.feature_parser.parse(team_obs, step)
-        return obs
-
-    def _obs_team_to_mb_agent(self, team_obs: Dict[int, Dict[int, Dict[str, Any]]]) -> Dict[int, Dict[str, Any]]:
-        obs = {}
-        for tid, team_obs in team_obs.items():
-            obs[tid] = {}
-            for pid in range(self.num_team_member):
-                pobs = team_obs.get(pid, self._dummy_body_feature)
-                for k,v in pobs.items():
-                    if k not in obs[tid]:
-                        obs[tid][k] = []
-                    obs[tid][k].append(v)
-            for k in obs[tid]:
-                obs[tid][k] = np.stack(obs[tid][k])
-
-                
-        return obs
-
-    def _actions_mb_agent_to_team(self, mb_actions: Dict[int, Dict[str, Any]]) -> Dict[int, Dict[int, Dict[str, Any]]]:
-        team_actions = {}
-        for tid, team_mb_actions in mb_actions.items():
-            team_actions[tid] = {p: {} for p in range(self.num_team_member)}
-            for key, val in team_mb_actions.items():
-                action, pid = key.split(":")
-                team_actions[tid][int(pid)][action] = val
-        return team_actions
 
     def _flatten(self, xs: Dict[int, Dict[int, Any]]) -> Dict[int, Any]:
         ret = {}
@@ -270,4 +233,4 @@ class MyMeleeTeam(ScriptedTeam):
 
 
 class TrainConfig(CompetitionConfig):
-    MAP_N = 4
+    MAP_N = 1

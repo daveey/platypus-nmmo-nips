@@ -330,11 +330,10 @@ def learn(
     for key in learner_outputs.keys():
         if key.endswith("_logits"):
             k = key.replace("_logits", "")
-            va, body = k.split(":")
             logits.append(learner_outputs[key])
             actions.append(batch[k])
             behaviour_policy_logprobs.append(batch[f"{k}_logp"])
-            valid_actions.append(batch[f"va_{va}"][:-1,:,int(body)])
+            valid_actions.append(batch[f"va_{k}"][:-1])
 
     gae_returns = advantage.gae(
         value=batch["value"],

@@ -7,15 +7,10 @@ from core.mask import MaskedPolicy
 
 
 class ActionHead(nn.Module):
-    name2dim = {}
+    name2dim = {"move": 5, "attack_target": 16}
 
-    def __init__(self, input_dim: int, num_bodies: int):
+    def __init__(self, input_dim: int):
         super().__init__()
-        self.num_bodies = num_bodies
-        for b in range(num_bodies):
-            self.name2dim[f"move:{b}"] = 5
-            self.name2dim[f"attack_target:{b}"] = 16
-
         self.heads = nn.ModuleDict({
             name: nn.Linear(input_dim, output_dim)
             for name, output_dim in self.name2dim.items()
@@ -24,6 +19,7 @@ class ActionHead(nn.Module):
     def forward(self, x) -> Dict[str, torch.Tensor]:
         out = {name: self.heads[name](x) for name in self.name2dim}
         return out
+
 
 class NMMONet(nn.Module):
     def __init__(self):
@@ -47,7 +43,7 @@ class NMMONet(nn.Module):
         self.other_entity_fc2 = nn.Linear(15 * 32, 32)
 
         self.fc = nn.Linear(self.num_bodies * (64 + 32 + 32), 64)
-        self.action_head = ActionHead(64, self.num_bodies)
+        self.action_head = ActionHead(64)
         self.value_head = nn.Linear(64, 1)
 
     def local_map_embedding(self, input_dict):
@@ -115,19 +111,14 @@ class NMMONet(nn.Module):
         logits = self.action_head(x)
         value = self.value_head(x).view(T, B)
 
-        output = {}
+        output = {"value": value}
         for key, val in logits.items():
-            action_name, body = key.split(":")
-            body = int(body)
             if not training:
-                dist = MaskedPolicy(val, input_dict[f"va_{action_name}"][:,:,body,:])
+                dist = MaskedPolicy(val, input_dict[f"va_{key}"])
                 action = dist.sample()
                 logprob = dist.log_prob(action)
-                output[f"{key}_logp"] = logprob
                 output[key] = action
+                output[f"{key}_logp"] = logprob
             else:
                 output[f"{key}_logits"] = val
-
-        output["value"] = value
-
         return output
