@@ -5,6 +5,7 @@ import threading
 import time
 import timeit
 import traceback
+import wandb
 from pathlib import Path
 from typing import Dict, List, Tuple, Callable
 
@@ -65,6 +66,16 @@ parser.add_argument("--num_selfplay_team", default=1, type=int, metavar="T",
                     help="Number of self-play team (default: 1).")
 parser.add_argument("--data_reuse", default=4, type=int, metavar="T",
                     help="Data reuse(default: 4).")
+
+# wandb settings.
+parser.add_argument("--wandb", action="store_true",
+                    help="Log to wandb.")
+parser.add_argument('--group', default='default', type=str, metavar='G',
+                    help='Name of the experiment group (as being used by wandb).')
+parser.add_argument('--project', default='platypus-nmmo-nips', type=str, metavar='P',
+                    help='Name of the project (as being used by wandb).')
+parser.add_argument('--entity', default='platypus', type=str, metavar='P',
+                    help='Which team to log to.')
 
 # Loss settings.
 parser.add_argument("--upgo_coef", default=0.5,
@@ -616,6 +627,9 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
             logging.info(
                 f"Steps {step} @ {sps:.1f} SPS. Loss {total_loss}. {mean_return}Stats:\n{pprint.pformat(stats)}"
             )
+            if flags.wandb:
+                stats['sps'] = sps
+                wandb.log(stats, step)
     except KeyboardInterrupt:
         return  # Try joining actors then quit.
     else:
@@ -635,4 +649,12 @@ if __name__ == "__main__":
     torch.set_num_threads(1)
     flags = parser.parse_args()
     flags.num_agents = flags.num_selfplay_team * TrainEnv.num_team_member
+    if flags.wandb:
+        # flags_dict = omegaconf.OmegaConf.to_container(flags)
+        wandb.init(
+            project=flags.project,
+            config=flags,
+            group=flags.group,
+            entity=flags.entity,
+        )
     train(flags)
