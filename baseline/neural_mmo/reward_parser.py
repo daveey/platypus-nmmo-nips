@@ -12,7 +12,7 @@ PROFESSION = ["MeleeLevel"]
 
 class RewardParser:
     def __init__(self, phase: str = "phase1"):
-        assert phase in ["phase1", "phase2"]
+        assert phase in ["phase1", "phase2", "team"]
         self.phase = phase
         self.best_ever_equip_level = defaultdict(
             lambda: defaultdict(lambda: 0))
@@ -66,9 +66,12 @@ class RewardParser:
             if agent_id in done and not done[agent_id]:
                 team_reward[agent_id // 8] += r
     
-        return {
-            a: reward[a] / 10 + team_reward[a // 8] / 8 for a in reward
-        }
+
+        if self.phase == "team":
+            return {
+                a: reward[a] / 10 + team_reward[a // 8] / 8 for a in reward
+            }
+        return reward
 
     def extract_info_from_obs(self, obs: Dict[int, Dict[str, np.ndarray]]):
         food = {i: obs[i]["self_entity"][0][0, 11] for i in obs}
