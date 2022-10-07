@@ -1,3 +1,4 @@
+from re import A
 from typing import Dict, Tuple
 
 import numpy as np
@@ -24,30 +25,32 @@ class FeatureParser:
         "other_entity":
         spaces.Box(low=0, high=1, shape=(NUM_BODIES, 15, 26), dtype=np.float32),
         "va_move":
-        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 5, ), dtype=np.float32),
-        "va_attack_target":
-        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 16, ), dtype=np.float32),
-    }
-    action_spec = {
-        "move":
         spaces.Box(low=0, high=1, shape=(5, ), dtype=np.float32),
-        "attack_target":
+        "va_attack_target":
         spaces.Box(low=0, high=1, shape=(16, ), dtype=np.float32),
     }
+
+    def __init__(self) -> None:
+        self._dummy_features = {}
+        for key, val in self.spec.items():
+            if key.startswith("va_"):
+                self._dummy_features[key] = np.zeros(shape=val.shape, dtype=val.dtype) 
+            else:
+                self._dummy_features[key] = np.zeros(shape=val.shape[1:], dtype=val.dtype) 
 
     def parse(
         self,
         observations: Dict[int, Dict[str, ndarray]],
         step: int,
     ) -> Dict[int, Dict[str, ndarray]]:
-        ret = {}
+        agent_obs = {}
         for agent_id in observations:
             terrain, death_fog_damage, population, reachable, va_move = self.parse_local_map(
                 observations[agent_id], step)
             entity, va_target = self.parse_entity(observations[agent_id])
             self_entity = entity[:1, :]
             other_entity = entity[1:, :]
-            ret[agent_id] = {
+            agent_obs[agent_id] = {
                 "terrain": terrain,
                 "death_fog_damage": death_fog_damage,
                 "reachable": reachable,
@@ -57,6 +60,24 @@ class FeatureParser:
                 "va_move": va_move,
                 "va_attack_target": va_target,
             }
+        team_obs = {
+            tid: [ agent_obs.get(tid*8+bid, self._dummy_features) for bid in range(8)] 
+            for tid in range(8)
+        }
+        ret = {}
+        for agent_id in range(64):
+            ret[agent_id] = {}
+            team_id = agent_id // 8
+            body_id = agent_id % 8
+            for k in self.spec:
+                if k.startswith("va_"):
+                    ret[agent_id][k] = agent_obs.get(agent_id, self._dummy_features)[k]
+                else:
+                    obs = [ o[k] for o in team_obs[agent_id // 8]]
+                    ret[agent_id][k] = np.stack(
+                        [obs[body_id]] + obs[:body_id] + obs[body_id+1:]
+                    )
+
         return ret
 
     def parse_local_map(
@@ -72,7 +93,7 @@ class FeatureParser:
                                     dtype=self.spec["death_fog_damage"].dtype)
         population = np.zeros(shape=self.spec["entity_population"].shape[1:],
                               dtype=self.spec["entity_population"].dtype)
-        va = np.ones(shape=self.spec["va_move"].shape[1:],
+        va = np.ones(shape=self.spec["va_move"].shape,
                      dtype=self.spec["va_move"].dtype)
 
         # terrain, death_fog
@@ -115,7 +136,7 @@ class FeatureParser:
     ) -> Tuple[ndarray, ndarray]:
         cent = CompetitionConfig.MAP_CENTER // 2
         entities = observation["Entity"]["Continuous"]
-        va = np.zeros(shape=self.spec["va_attack_target"].shape[1:],
+        va = np.zeros(shape=self.spec["va_attack_target"].shape,
                       dtype=self.spec["va_attack_target"].dtype)
         va[0] = 1.0
 

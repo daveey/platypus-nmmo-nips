@@ -28,7 +28,6 @@ RUN set -e; \
     apt-get install -y gcsfuse \
     && apt-get clean
 
-WORKDIR /src/baseline
 
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 
@@ -55,12 +54,14 @@ ENV BASH_ENV /root/.bashrc
 
 RUN pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html 
 RUN pip install --ignore-requires-python openskill==0.2.0a0
-ADD requirements /tmo/requirements.txt
+ADD ./requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 RUN mkdir /mnt/shared
 
 ENV OMP_NUM_THREADS 1
 ADD . src
+WORKDIR /src/baseline
+
 # Run.
 CMD ["bash", "-c", "sleep 99999999"]
 

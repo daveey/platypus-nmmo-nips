@@ -65,8 +65,6 @@ parser.add_argument("--num_selfplay_team", default=1, type=int, metavar="T",
                     help="Number of self-play team (default: 1).")
 parser.add_argument("--data_reuse", default=4, type=int, metavar="T",
                     help="Data reuse(default: 4).")
-parser.add_argument("--reward_setting", default="phase1", type=str,
-                    help="Reward setting.")
 
 # Loss settings.
 parser.add_argument("--upgo_coef", default=0.5,
@@ -85,6 +83,14 @@ parser.add_argument("--learning_rate", default=0.00048,
                     type=float, metavar="LR", help="Learning rate.")
 parser.add_argument("--grad_norm_clipping", default=40.0, type=float,
                     help="Global gradient norm clip.")
+
+# NMMO Settings
+parser.add_argument("--reward_setting", default="phase1", type=str,
+                    help="Reward setting.")
+parser.add_argument("--num_maps", default=1, type=int, metavar="B",
+                    help="Number of training maps per actor.")
+parser.add_argument("--map_size", default=128, type=int, metavar="B",
+                    help="Size of training map.")
 # yapf: enable
 
 logging.basicConfig(
@@ -98,7 +104,7 @@ Net = NMMONet
 
 
 def create_env(flags):
-    env = TeamBasedEnv(config=TrainConfig())
+    env = TeamBasedEnv(config=TrainConfig(flags))
     return TrainEnv(
         env,
         num_selfplay_team=flags.num_selfplay_team,
@@ -330,11 +336,10 @@ def learn(
     for key in learner_outputs.keys():
         if key.endswith("_logits"):
             k = key.replace("_logits", "")
-            va, body = k.split(":")
             logits.append(learner_outputs[key])
             actions.append(batch[k])
             behaviour_policy_logprobs.append(batch[f"{k}_logp"])
-            valid_actions.append(batch[f"va_{va}"][:-1,:,int(body)])
+            valid_actions.append(batch[f"va_{k}"][:-1])
 
     gae_returns = advantage.gae(
         value=batch["value"],
