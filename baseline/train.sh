@@ -15,6 +15,7 @@ python monobeast.py \
     --restart_actor_interval 18000 \
     --reward_setting phase1 \
     --xpid nmmo \
+    $@ \
     #--checkpoint_path ./checkpoints/model_2757376.pt
     
     
