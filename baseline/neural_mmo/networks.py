@@ -1,3 +1,4 @@
+from tkinter import HIDDEN
 from typing import Dict
 
 import torch
@@ -19,8 +20,11 @@ class ActionHead(nn.Module):
     def __init__(self, input_dim: int):
         super().__init__()
         self.heads = nn.ModuleDict({
-            name: nn.Linear(input_dim, output_dim)
-            for name, output_dim in self.name2dim.items()
+            name: nn.Sequential(
+                nn.Linear(input_dim, 64),
+                nn.ReLU(),
+                nn.Linear(64, output_dim)
+            ) for name, output_dim in self.name2dim.items()
         })
 
     def forward(self, x) -> Dict[str, torch.Tensor]:
@@ -37,11 +41,13 @@ class NMMONet(nn.Module):
         self.item_embedding = torch.nn.Linear(25*14, 64)    
 
         self.fc = nn.Sequential(
-            nn.Linear(self.num_bodies * 4*64, 64),
+            nn.Linear(self.num_bodies * 4*64, 256),
             nn.ReLU(),
-            nn.Linear(64, 64),
+            nn.Linear(256, 256),
             nn.ReLU(),
-            nn.Linear(64, 64),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, 64),
             nn.ReLU())
 
         self.action_head = ActionHead(64)
