@@ -196,11 +196,26 @@ class TrainEnv(Wrapper):
         for tid in actions:
             for pid in actions[tid]:
                 move = actions[tid][pid]["move"]
-                attack_target = actions[tid][pid]["attack_target"]
                 decisions[tid][pid].update({
                     nmmo.action.Attack: {
                         nmmo.action.Style: 0,
-                        nmmo.action.Target: attack_target
+                        nmmo.action.Target: actions[tid][pid]["attack_target"]
+                    }
+                })
+                decisions[tid][pid].update({
+                    nmmo.action.Use: {
+                        nmmo.action.Item: actions[tid][pid]["use_target"]
+                    }
+                })
+                decisions[tid][pid].update({
+                    nmmo.action.Sell: {
+                        nmmo.action.Item: actions[tid][pid]["sell_target"],
+                        nmmo.action.Price: actions[tid][pid]["sell_price"]
+                    }
+                })
+                decisions[tid][pid].update({
+                    nmmo.action.Buy: {
+                        nmmo.action.Item: actions[tid][pid]["buy_target"]
                     }
                 })
                 if move != 0:
@@ -217,10 +232,6 @@ class MyMelee(Melee):
 
     def __call__(self, obs):
         super(Combat, self).__call__(obs)
-        self.use()
-        self.exchange()
-        assert nmmo.action.Move not in self.actions
-        assert nmmo.action.Attack not in self.actions
         return self.actions
 
 

@@ -24,10 +24,22 @@ class FeatureParser:
         spaces.Box(low=0, high=1, shape=(NUM_BODIES, 1, 26), dtype=np.float32),
         "other_entity":
         spaces.Box(low=0, high=1, shape=(NUM_BODIES, 15, 26), dtype=np.float32),
+        "items":
+        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 25, 14), dtype=np.float32),
+        "market":
+        spaces.Box(low=0, high=1, shape=(NUM_BODIES, 25, 14), dtype=np.float32),
         "va_move":
         spaces.Box(low=0, high=1, shape=(5, ), dtype=np.float32),
         "va_attack_target":
         spaces.Box(low=0, high=1, shape=(16, ), dtype=np.float32),
+        "va_use_target":
+        spaces.Box(low=0, high=1, shape=(25, ), dtype=np.float32),
+        "va_buy_target":
+        spaces.Box(low=0, high=1, shape=(25, ), dtype=np.float32),        
+        "va_sell_target":
+        spaces.Box(low=0, high=1, shape=(25, ), dtype=np.float32),
+        "va_sell_price":
+        spaces.Box(low=0, high=1, shape=(5, ), dtype=np.float32),
     }
 
     def __init__(self) -> None:
@@ -47,7 +59,9 @@ class FeatureParser:
         for agent_id in observations:
             terrain, death_fog_damage, population, reachable, va_move = self.parse_local_map(
                 observations[agent_id], step)
-            entity, va_target = self.parse_entity(observations[agent_id])
+            entity, va_attack_target = self.parse_entity(observations[agent_id])
+            market, va_buy_target = self.parse_market(observations[agent_id])
+            items, va_sell_target, va_use_target = self.parse_items(observations[agent_id])
             self_entity = entity[:1, :]
             other_entity = entity[1:, :]
             agent_obs[agent_id] = {
@@ -57,8 +71,14 @@ class FeatureParser:
                 "entity_population": population,
                 "self_entity": self_entity,
                 "other_entity": other_entity,
+                "items": items,
+                "market": market,
                 "va_move": va_move,
-                "va_attack_target": va_target,
+                "va_attack_target": va_attack_target,
+                "va_use_target": va_use_target,
+                "va_buy_target": va_buy_target,
+                "va_sell_target": va_sell_target,
+                "va_sell_price": np.ones(5)
             }
         team_obs = {
             tid: [ agent_obs.get(tid*8+bid, self._dummy_features) for bid in range(8)] 
@@ -189,6 +209,89 @@ class FeatureParser:
                 for _ in range(max_size - len(entities_list))
             ])
         return np.asarray(entities_list), va
+
+    def parse_items(
+        self,
+        observation: Dict[str, ndarray],
+        max_size: int = 25,
+    ) -> Tuple[ndarray, ndarray, ndarray]:
+        items = observation["Item"]["Continuous"]
+
+        va_sell = np.zeros(shape=self.spec["va_sell_target"].shape,
+                           dtype=self.spec["va_sell_target"].dtype)
+        va_use = np.zeros(shape=self.spec["va_use_target"].shape,
+                           dtype=self.spec["va_use_target"].dtype)
+        item_list = []
+
+        for e in items[:max_size]:
+            if e[1] == 0:
+                continue
+            va_sell[int(e[1])] = float(e[5] > 0)
+            va_use[int(e[1])] = float(e[4] > 0 and e[15] == 0)
+            item_list.append(np.array([
+                float(e[2]) / 1, # Level
+                float(e[3]) / 1, # Capacity
+                float(e[4]) / 1, # Quantity
+                float(e[5]) / 1, # Tradable
+                float(e[6]) / 10, # MeleeAttack
+                float(e[7]) / 10, # RangeAttack
+                float(e[8]) / 10, # MageAttack
+                float(e[9]) / 10, # MeleeDefense
+                float(e[10]) / 10, # RangeDefense
+                float(e[11]) / 10, # MageDefense
+                float(e[12]) / 10, # HealthRestore
+                float(e[13]) / 1, # ResourceRestore
+                float(e[14]) / 1000, # Price
+                float(e[15]) / 1, # Equiped
+            ], dtype=np.float32))
+
+        if len(item_list) < max_size:
+            item_list.extend([
+                np.zeros(self.spec["items"].shape[-1], dtype=np.float32)
+                for _ in range(max_size - len(item_list))
+            ])
+        return np.asarray(item_list), va_use, va_sell
+
+
+    def parse_market(
+        self,
+        observation: Dict[str, ndarray],
+        max_size: int = 25,
+    ) -> Tuple[ndarray, ndarray, ndarray]:
+        market = observation["Market"]["Continuous"]
+
+        va_buy = np.zeros(shape=self.spec["va_buy_target"].shape,
+                           dtype=self.spec["va_buy_target"].dtype)
+        money = observation["Entity"]["Continuous"][0][12]
+        item_list = []
+
+        for e in market[:max_size]:
+            if e[1] == 0:
+                continue
+            va_buy[int(e[1])] = float(e[14] > money)
+            item_list.append(np.array([
+                float(e[2]) / 1, # Level
+                float(e[3]) / 1, # Capacity
+                float(e[4]) / 1, # Quantity
+                float(e[5]) / 1, # Tradable
+                float(e[6]) / 10, # MeleeAttack
+                float(e[7]) / 10, # RangeAttack
+                float(e[8]) / 10, # MageAttack
+                float(e[9]) / 10, # MeleeDefense
+                float(e[10]) / 10, # RangeDefense
+                float(e[11]) / 10, # MageDefense
+                float(e[12]) / 10, # HealthRestore
+                float(e[13]) / 1, # ResourceRestore
+                float(e[14]) / 1000, # Price
+                float(e[15]) / 1, # Equiped
+            ], dtype=np.float32))
+
+        if len(item_list) < max_size:
+            item_list.extend([
+                np.zeros(self.spec["market"].shape[-1], dtype=np.float32)
+                for _ in range(max_size - len(item_list))
+            ])
+        return np.asarray(item_list), va_buy
 
     @staticmethod
     def compute_death_fog_damage(r: int, c: int, step: int) -> float:

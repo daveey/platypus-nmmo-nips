@@ -7,7 +7,14 @@ from core.mask import MaskedPolicy
 
 
 class ActionHead(nn.Module):
-    name2dim = {"move": 5, "attack_target": 16}
+    name2dim = {
+        "move": 5, 
+        "attack_target": 16, 
+        "use_target": 25, 
+        "sell_target": 25, 
+        "buy_target": 25, 
+        "sell_price": 5
+    }
 
     def __init__(self, input_dim: int):
         super().__init__()
@@ -27,9 +34,10 @@ class NMMONet(nn.Module):
         self.num_bodies = 8
         self.map_embedding = torch.nn.Linear(15*15*(16+6+2), 64)        
         self.entity_embedding = torch.nn.Linear(16*26, 64)    
+        self.item_embedding = torch.nn.Linear(25*14, 64)    
 
         self.fc = nn.Sequential(
-            nn.Linear(self.num_bodies * 128, 64),
+            nn.Linear(self.num_bodies * 4*64, 64),
             nn.ReLU(),
             nn.Linear(64, 64),
             nn.ReLU(),
@@ -51,6 +59,8 @@ class NMMONet(nn.Module):
         population = input_dict["entity_population"]
         self_entity = input_dict["self_entity"]
         other_entity = input_dict["other_entity"]
+        items = input_dict["items"]
+        market = input_dict["market"]
 
         terrain = F.one_hot(terrain, num_classes=16)
         population = F.one_hot(population, num_classes=6)
@@ -64,8 +74,10 @@ class NMMONet(nn.Module):
             torch.cat([self_entity, other_entity], 3)
             .view(T, B * self.num_bodies, -1)
         )
+        items = self.item_embedding(items.view(T, B * self.num_bodies, -1))
+        market = self.item_embedding(market.view(T, B * self.num_bodies, -1))
 
-        obs = torch.cat([map, entities], 2).view(T, B, -1)
+        obs = torch.cat([map, entities, items, market], 2).view(T, B, -1)
         state = self.fc(obs).view(T, B, -1)
 
         logits = self.action_head(state)
