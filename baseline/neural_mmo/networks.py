@@ -25,12 +25,11 @@ class NMMONet(nn.Module):
     def __init__(self):
         super().__init__()
         self.num_bodies = 8
-
-        self.map_embedding = torch.nn.Linear(15*15*8*(16+6+2), 64)        
-        self.entity_embedding = torch.nn.Linear(8*16*26, 64)        
+        self.map_embedding = torch.nn.Linear(15*15*(16+6+2), 64)        
+        self.entity_embedding = torch.nn.Linear(16*26, 64)    
 
         self.fc = nn.Sequential(
-            nn.Linear(128, 64),
+            nn.Linear(self.num_bodies * 128, 64),
             nn.ReLU(),
             nn.Linear(64, 64),
             nn.ReLU(),
@@ -60,14 +59,14 @@ class NMMONet(nn.Module):
 
         map = torch.cat(
             [terrain, reachable, population, death_fog_damage], dim=-1)
-        map = self.map_embedding(map.view(T, B, -1).to(torch.float))
+        map = self.map_embedding(map.view(T, B * self.num_bodies, -1).to(torch.float))
         entities = self.entity_embedding(
             torch.cat([self_entity, other_entity], 3)
-            .view(T, B, -1)
+            .view(T, B * self.num_bodies, -1)
         )
 
-        obs = torch.cat([map, entities], 2)
-        state = self.fc(obs)
+        obs = torch.cat([map, entities], 2).view(T, B, -1)
+        state = self.fc(obs).view(T, B, -1)
 
         logits = self.action_head(state)
         value = self.value_head(state).view(T, B)
