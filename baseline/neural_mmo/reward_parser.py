@@ -12,7 +12,7 @@ PROFESSION = ["MeleeLevel"]
 
 class RewardParser:
     def __init__(self, phase: str = "phase1"):
-        assert phase in ["phase1", "phase2", "team"]
+        assert phase in ["phase1", "phase2", "team", "life"]
         self.phase = phase
         self.best_ever_equip_level = defaultdict(
             lambda: defaultdict(lambda: 0))
@@ -28,6 +28,10 @@ class RewardParser:
         step: int,
         done: Dict[int, bool]
     ) -> Dict[int, float]:
+
+        if self.phase == "life":
+            return {a: float(step) / 1024 for a in obs}
+
         reward = {}
         team_reward = { t: 0 for t in range(8) }
         food, water = self.extract_info_from_obs(obs)

@@ -242,8 +242,6 @@ class MyMeleeTeam(ScriptedTeam):
 class TrainConfig(CompetitionConfig):
     def __init__(self, flags):
         super().__init__()
-        assert flags.reward_setting in ["phase1", "phase2", "team"]
-
         self.MAP_N = flags.num_maps
         #self.MAP_CENTER = flags.map_size
         
