@@ -110,9 +110,9 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
+buffer_specs = {}
 Buffers = Dict[str, List[torch.Tensor]]
 Net = NMMONet
-
 
 def create_env(flags):
     env = TeamBasedEnv(config=TrainConfig(flags))
@@ -130,30 +130,43 @@ def create_buffers(
 ) -> Buffers:
     T = flags.unroll_length
     obs_specs = {
-        key: dict(size=(T + 1, *val.shape),
-                  dtype=to_torch_dtype[val.dtype.name])
+        key: dict(size=val.shape,
+                  dtype=to_torch_dtype[val.dtype.name],
+                  extra = True)
         for key, val in observation_space.items()
     }
     action_specs = {}
     for key, val in action_space.items():
-        action_specs[key] = dict(size=(T, ), dtype=torch.int64)
-        action_specs[f"{key}_logp"] = dict(size=(T, ), dtype=torch.float32)
-    specs = dict(
-        reward=dict(size=(T, ), dtype=torch.float32),
-        done=dict(size=(T, ), dtype=torch.bool),
-        mask=dict(size=(T, ), dtype=torch.bool),
-        episode_return=dict(size=(T, ), dtype=torch.float32),
-        episode_step=dict(size=(T, ), dtype=torch.int32),
-        value=dict(size=(T, ), dtype=torch.float32),
-    )
-    specs.update(obs_specs)
-    specs.update(action_specs)
-    buffers: Buffers = {key: [] for key in specs}
+        action_specs[key] = dict(size=(), dtype=torch.int64)
+        action_specs[f"{key}_logp"] = dict(size=(), dtype=torch.float32)
+
+    buffer_specs.update(dict(
+        reward=dict(size=(), dtype=torch.float32),
+        done=dict(size=(), dtype=torch.bool),
+        mask=dict(size=(), dtype=torch.bool),
+        episode_return=dict(size=(), dtype=torch.float32),
+        episode_step=dict(size=(), dtype=torch.int32),
+        value=dict(size=(), dtype=torch.float32),
+    ))
+    buffer_specs.update(obs_specs)
+    buffer_specs.update(action_specs)
+    offset = 0
+    for k,spec in buffer_specs.items():
+        size = int(np.prod(spec["size"]))
+        buffer_specs[k]["start"] = offset
+        buffer_specs[k]["end"] = offset + size
+        offset += size
+
+    buffers: Buffers = {"flat": []}
     for _ in range(flags.num_buffers):
-        for key in buffers:
-            buffers[key].append(torch.zeros(**specs[key]).share_memory_())
+        buffers["flat"].append(torch.zeros((T+1, offset), dtype=torch.float32).share_memory_())
     return buffers
 
+
+def store_item(buffers, key, index, t, value):
+    if buffer_specs[key]["end"] - buffer_specs[key]["start"] > 1:
+        value = torch.flatten(value)
+    buffers["flat"][index][t, buffer_specs[key]["start"]:buffer_specs[key]["end"], ...] = value
 
 def store(
     buffers: Buffers,
@@ -170,18 +183,17 @@ def store(
     for agent_id in obs.keys():
         index = next(indices_iter)
         for key, val in obs[agent_id].items():
-            buffers[key][index][t, ...] = val
+            store_item(buffers, key, index, t, val)
         if reward is not None:
-            buffers["reward"][index][t, ...] = reward[agent_id]
+            store_item(buffers, "reward", index, t, reward[agent_id])
         if done is not None:
-            buffers["done"][index][t, ...] = done[agent_id]
+            store_item(buffers, "done", index, t, done[agent_id])
         if info is not None:
             for key, val in info[agent_id].items():
-                buffers[key][index][t, ...] = val
+                store_item(buffers, key, index, t, val)
         if agent_output is not None:
             for key, val in agent_output[agent_id].items():
-                buffers[key][index][t, ...] = val
-
+                store_item(buffers, key, index, t, val)
 
 def batch(
     obs: Dict[str, np.ndarray],
@@ -305,10 +317,18 @@ def get_batch(
 ) -> Dict[str, Tensor]:
     indices = [full_queue.get() for _ in range(flags.batch_size)]
     timings.time("dequeue")
-    batch = {
-        key: torch.stack([buffers[key][m] for m in indices], dim=1)
-        for key in buffers
-    }
+
+    batch = {}
+    buffer = buffers["flat"]
+    for key, spec in buffer_specs.items():
+        batch[key] = torch.stack([
+            buffer[m][:,spec["start"]:spec["end"]]
+            .view(flags.unroll_length + 1, *spec["size"])
+            .to(dtype=spec["dtype"]
+        ) for m in indices], dim=1)
+        if not spec.get("extra", False):
+            batch[key] = batch[key][:-1]
+
     timings.time("batch")
     for m in indices:
         free_queue.put(m)
