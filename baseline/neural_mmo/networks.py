@@ -35,7 +35,7 @@ class ActionHead(nn.Module):
 class NMMONet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.num_bodies = 8
+        self.num_bodies = 1
         self.map_embedding = torch.nn.Linear(15*15*(16+6+2), 64)        
         self.entity_embedding = torch.nn.Linear(16*26, 64)    
         self.item_embedding = torch.nn.Linear(25*14, 64)    
@@ -77,7 +77,7 @@ class NMMONet(nn.Module):
             [terrain, reachable, population, death_fog_damage], dim=-1)
         map = self.map_embedding(map.view(T, B * self.num_bodies, -1).to(torch.float))
         entities = self.entity_embedding(
-            torch.cat([self_entity, other_entity], 3)
+            torch.cat([self_entity, other_entity], 2)
             .view(T, B * self.num_bodies, -1)
         )
         items = self.item_embedding(items.view(T, B * self.num_bodies, -1))
