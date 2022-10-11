@@ -33,13 +33,13 @@ class FeatureParser:
         "va_attack_target":
         spaces.Box(low=0, high=1, shape=(16, ), dtype=np.float32),
         "va_use_target":
-        spaces.Box(low=0, high=1, shape=(25, ), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(26, ), dtype=np.float32),
         "va_buy_target":
-        spaces.Box(low=0, high=1, shape=(25, ), dtype=np.float32),        
+        spaces.Box(low=0, high=1, shape=(26, ), dtype=np.float32),        
         "va_sell_target":
-        spaces.Box(low=0, high=1, shape=(25, ), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(26, ), dtype=np.float32),
         "va_sell_price":
-        spaces.Box(low=0, high=1, shape=(5, ), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
     }
 
     def __init__(self) -> None:
@@ -61,7 +61,7 @@ class FeatureParser:
                 observations[agent_id], step)
             entity, va_attack_target = self.parse_entity(observations[agent_id])
             market, va_buy_target = self.parse_market(observations[agent_id])
-            items, va_sell_target, va_use_target = self.parse_items(observations[agent_id])
+            items, va_use_target, va_sell_target = self.parse_items(observations[agent_id])
             self_entity = entity[:1, :]
             other_entity = entity[1:, :]
             agent_obs[agent_id] = {
@@ -179,19 +179,19 @@ class FeatureParser:
             entities_list.append(
                 np.array(
                     [
-                        float(e[2] == 0),  # attacked
-                        e[3] / 10.0,  # level
-                        e[4] / 10.0,  # item_level
-                        (r - 16) / 128.0,  # r
-                        (c - 16) / 128.0,  # c
-                        (r - 16 - cent) / 128.0,  # delta_r
-                        (c - 16 - cent) / 128.0,  # delta_c
-                        e[9] / 100.0,  # damage
-                        e[10] / 1024.0,  # alive_time
-                        e[12] / 100.0,  # gold
-                        e[13] / 100.0,  # health
-                        e[14] / 100.0,  # food
-                        e[15] / 100.0,  # water
+                        float(e[2] == 0),  # attacked 0
+                        e[3] / 10.0,  # level 1
+                        e[4] / 10.0,  # item_level 2
+                        (r - 16) / 128.0,  # r 3
+                        (c - 16) / 128.0,  # c 4
+                        (r - 16 - cent) / 128.0,  # delta_r 5
+                        (c - 16 - cent) / 128.0,  # delta_c 6
+                        e[9] / 100.0,  # damage 7
+                        e[10] / 1024.0,  # alive_time 8
+                        e[12] / 100.0,  # gold 9
+                        e[13] / 100.0,  # health 10
+                        e[14] / 100.0,  # food 11
+                        e[15] / 100.0,  # water 12
                         e[16] / 10.0,  # melee
                         e[17] / 10.0,  # range
                         e[18] / 10.0,  # mage
@@ -222,12 +222,14 @@ class FeatureParser:
         va_use = np.zeros(shape=self.spec["va_use_target"].shape,
                            dtype=self.spec["va_use_target"].dtype)
         item_list = []
+        va_sell[0] = 1.0
+        va_use[0] = 1.0
 
         for e in items[:max_size]:
             if e[1] == 0:
-                continue
-            va_sell[int(e[1])] = float(e[5] > 0)
-            va_use[int(e[1])] = float(e[4] > 0 and e[15] == 0)
+                break
+            va_sell[int(e[1])] = float(e[5] > 0 and e[4] > 0)
+            va_use[int(e[1])] = float(e[4] > 0 and e[4] > 0)
             item_list.append(np.array([
                 float(e[2]) / 1, # Level
                 float(e[3]) / 1, # Capacity
@@ -264,11 +266,12 @@ class FeatureParser:
                            dtype=self.spec["va_buy_target"].dtype)
         money = observation["Entity"]["Continuous"][0][12]
         item_list = []
+        va_buy[0] = 1.0
 
         for e in market[:max_size]:
             if e[1] == 0:
-                continue
-            va_buy[int(e[1])] = float(e[14] > money)
+                break
+            va_buy[int(e[1])] = float(e[14] < money and e[4] > 0)
             item_list.append(np.array([
                 float(e[2]) / 1, # Level
                 float(e[3]) / 1, # Capacity
