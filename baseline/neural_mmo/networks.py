@@ -11,10 +11,10 @@ class ActionHead(nn.Module):
     name2dim = {
         "move": 5, 
         "attack_target": 16, 
-        "use_target": 25, 
-        "sell_target": 25, 
-        "buy_target": 25, 
-        "sell_price": 5
+        "use_target": 26, 
+        "sell_target": 26, 
+        "buy_target": 26, 
+        "sell_price": 6
     }
 
     def __init__(self, input_dim: int):

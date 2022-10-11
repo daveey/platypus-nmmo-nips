@@ -78,7 +78,7 @@ class FeatureParser:
                 "va_use_target": va_use_target,
                 "va_buy_target": va_buy_target,
                 "va_sell_target": va_sell_target,
-                "va_sell_price": np.ones(5)
+                "va_sell_price": np.ones(6)
             }
         team_obs = {
             tid: [ agent_obs.get(tid*8+bid, self._dummy_features) for bid in range(8)] 
