@@ -44,6 +44,7 @@ class MonobeastEnv:
         obs = tree.map_structure(to_tensor, obs)
         reward = tree.map_structure(to_tensor, reward)
         done = tree.map_structure(to_tensor, done)
+
         return obs, reward, done, info_
 
     def close(self):

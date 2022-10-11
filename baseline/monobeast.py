@@ -389,7 +389,6 @@ def learn(
     )
 
     for i in range(flags.data_reuse):
-        print("xcxc", i)
         if i > 0:
             learner_outputs = learner_model(batch, training=True)
             action_names = learner_model.action_head.name2dim.keys()
