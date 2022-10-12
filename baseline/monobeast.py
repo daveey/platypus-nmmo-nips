@@ -147,6 +147,7 @@ def create_buffers(
         episode_return=dict(size=(), dtype=torch.float32),
         episode_step=dict(size=(), dtype=torch.int32),
         value=dict(size=(), dtype=torch.float32),
+        agent_lifespan=dict(size=(), dtype=torch.int32)
     ))
     buffer_specs.update(obs_specs)
     buffer_specs.update(action_specs)
@@ -431,6 +432,7 @@ def learn(
 
     # yapf: disable
     stats = {
+        "mean_agent_lifespan": _reduce(torch.mean, batch["agent_lifespan"]),
         "mean_episode_return": _reduce(torch.mean, episode_returns),
         "mean_episode_step": _reduce(torch.mean, episode_steps),
         "max_episode_step": _reduce(torch.max, episode_steps),
@@ -579,6 +581,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
         "policy_clip_frac",
         "grad_norm",
         "valid_data_frac",
+        "mean_agent_lifespan",
     ]
     logger.info("# Step\t{}".format("\t".join(stat_keys)))
 

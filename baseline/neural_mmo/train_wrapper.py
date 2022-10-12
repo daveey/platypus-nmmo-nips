@@ -97,6 +97,10 @@ class TrainEnv(Wrapper):
         if self._step >= self.max_step:
             done = {uid: True for uid in self.agents}
 
+        for a, d in done.items():
+            if d:
+                info[a]["agent_lifespan"] = self._step
+
         return obs, reward, done, info
 
     def _get(
