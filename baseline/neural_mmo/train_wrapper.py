@@ -218,6 +218,11 @@ class TrainEnv(Wrapper):
                         nmmo.action.Item: actions[tid][pid]["buy_target"]
                     }
                 })
+                decisions[tid][pid].update({
+                    nmmo.action.Comm: {
+                        nmmo.action.Token: actions[tid][pid]["send_token"]
+                    }
+                })
                 if move != 0:
                     decisions[tid][pid].update({
                         nmmo.action.Move: {

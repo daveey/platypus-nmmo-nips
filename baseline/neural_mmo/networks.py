@@ -11,10 +11,11 @@ class ActionHead(nn.Module):
     name2dim = {
         "move": 5, 
         "attack_target": 16, 
-        "use_target": 26, 
-        "sell_target": 26, 
-        "buy_target": 26, 
-        "sell_price": 6
+        "use_target": 170, 
+        "sell_target": 170, 
+        "buy_target": 170, 
+        "sell_price": 6,
+        "send_token": 170,
     }
 
     def __init__(self, input_dim: int):
@@ -114,10 +115,10 @@ class NMMONet(nn.Module):
         )
         self.local_map_fc = nn.Linear(32 * 4 * 4, 64)
 
-        self.self_entity_fc1 = nn.Linear(26, 32)
+        self.self_entity_fc1 = nn.Linear(27, 32)
         self.self_entity_fc2 = nn.Linear(32, 32)
 
-        self.other_entity_fc1 = nn.Linear(26, 32)
+        self.other_entity_fc1 = nn.Linear(27, 32)
         self.other_entity_fc2 = nn.Linear(15 * 32, 32)
 
         self.item_fc1 = nn.Linear(14, 32)

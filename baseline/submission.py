@@ -70,6 +70,7 @@ class MonobeastBaseline(Team):
                 "sell_target": out["sell_target"].item(),
                 "sell_price": out["sell_price"].item(),
                 "use_target": out["use_target"].item(),
+                "send_token": out["send_token"].item(),
                 "attack_target": out["attack_target"].item()
             }
 

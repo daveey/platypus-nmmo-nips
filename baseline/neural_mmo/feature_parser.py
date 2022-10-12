@@ -21,9 +21,9 @@ class FeatureParser:
         "entity_population":
         spaces.Box(low=0, high=5, shape=(15, 15), dtype=np.int64),
         "self_entity":
-        spaces.Box(low=0, high=1, shape=(1, 26), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(1, 27), dtype=np.float32),
         "other_entity":
-        spaces.Box(low=0, high=1, shape=(15, 26), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(15, 27), dtype=np.float32),
         "items":
         spaces.Box(low=0, high=1, shape=(25, 14), dtype=np.float32),
         "market":
@@ -33,13 +33,15 @@ class FeatureParser:
         "va_attack_target":
         spaces.Box(low=0, high=1, shape=(16, ), dtype=np.float32),
         "va_use_target":
-        spaces.Box(low=0, high=1, shape=(26, ), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(170, ), dtype=np.float32),
         "va_buy_target":
-        spaces.Box(low=0, high=1, shape=(26, ), dtype=np.float32),        
+        spaces.Box(low=0, high=1, shape=(170, ), dtype=np.float32),        
         "va_sell_target":
-        spaces.Box(low=0, high=1, shape=(26, ), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(170, ), dtype=np.float32),
         "va_sell_price":
         spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+        "va_send_token":
+        spaces.Box(low=0, high=1, shape=(170, ), dtype=np.float32),
     }
 
     def __init__(self) -> None:
@@ -78,6 +80,7 @@ class FeatureParser:
                 "va_use_target": va_use_target,
                 "va_buy_target": va_buy_target,
                 "va_sell_target": va_sell_target,
+                "va_send_token": np.ones(170),
                 "va_sell_price": np.ones(6)
             }
         return {
@@ -167,6 +170,7 @@ class FeatureParser:
                         float(e[2] == 0),  # attacked 0
                         e[3] / 10.0,  # level 1
                         e[4] / 10.0,  # item_level 2
+                        e[5] / 170.0,  # communication token
                         (r - 16) / 128.0,  # r 3
                         (c - 16) / 128.0,  # c 4
                         (r - 16 - cent) / 128.0,  # delta_r 5
