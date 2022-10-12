@@ -72,7 +72,7 @@ class TrainEnv(Wrapper):
         decisions.update(actions)
 
         # step
-        raw_obs, _, raw_done, _ = super().step(decisions)
+        raw_obs, _, raw_done, raw_info = super().step(decisions)
 
         obs = self._flatten(self._get(raw_obs))
         obs = self.feature_parser.parse(obs, self._step)
@@ -98,8 +98,10 @@ class TrainEnv(Wrapper):
             done = {uid: True for uid in self.agents}
 
         for a, d in done.items():
-            if d:
+            if d and info[a]["mask"]:
                 info[a]["agent_lifespan"] = self._step
+                if all([done[a//8 + b] or (not info[a//8 + b]["mask"]) for b in range(0, 8)]):
+                    info[a // 8]["team_lifespan"] = self._step
 
         return obs, reward, done, info
 

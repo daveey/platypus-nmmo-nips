@@ -147,7 +147,8 @@ def create_buffers(
         episode_return=dict(size=(), dtype=torch.float32),
         episode_step=dict(size=(), dtype=torch.int32),
         value=dict(size=(), dtype=torch.float32),
-        agent_lifespan=dict(size=(), dtype=torch.int32)
+        agent_lifespan=dict(size=(), dtype=torch.int32),
+        team_lifespan=dict(size=(), dtype=torch.int32),
     ))
     buffer_specs.update(obs_specs)
     buffer_specs.update(action_specs)
@@ -433,6 +434,7 @@ def learn(
     # yapf: disable
     stats = {
         "mean_agent_lifespan": _reduce(torch.mean, batch["agent_lifespan"]),
+        "mean_team_lifespan": _reduce(torch.mean, batch["team_lifespan"]),
         "mean_episode_return": _reduce(torch.mean, episode_returns),
         "mean_episode_step": _reduce(torch.mean, episode_steps),
         "max_episode_step": _reduce(torch.max, episode_steps),
