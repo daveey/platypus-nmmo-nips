@@ -1,4 +1,5 @@
 import argparse
+from email.policy import strict
 import logging
 import pprint
 import threading
@@ -62,6 +63,8 @@ parser.add_argument("--restart_actor_interval", default=18000, type=int, metavar
                     help="Restart actor interval (default: 5h).")
 parser.add_argument("--checkpoint_path", default=None, type=str,
                     help="Load previous checkpoint to continue training")
+parser.add_argument("--upgrade_model", action="store_true",
+                    help="When true, allow the checkpointed model to be missing weights.")
 parser.add_argument("--num_selfplay_team", default=1, type=int, metavar="T",
                     help="Number of self-play team (default: 1).")
 parser.add_argument("--data_reuse", default=4, type=int, metavar="T",
@@ -149,6 +152,7 @@ def create_buffers(
         value=dict(size=(), dtype=torch.float32),
         agent_lifespan=dict(size=(), dtype=torch.int32),
         team_lifespan=dict(size=(), dtype=torch.int32),
+        game_over=dict(size=(), dtype=torch.bool),
     ))
     buffer_specs.update(obs_specs)
     buffer_specs.update(action_specs)
@@ -423,6 +427,10 @@ def learn(
     episode_end = (batch["done"] == True) & (batch["mask"] == True)
     episode_returns = batch["episode_return"][episode_end]
     episode_steps = batch["episode_step"][episode_end]
+    game_over = batch["game_over"] == True
+
+    agent_lifespan = batch["agent_lifespan"][game_over]
+    team_lifespan = batch["team_lifespan"][game_over]
 
     def _reduce(func: Callable, x: torch.Tensor):
         if x.nelement() == 0:
@@ -433,8 +441,8 @@ def learn(
 
     # yapf: disable
     stats = {
-        "mean_agent_lifespan": _reduce(torch.mean, batch["agent_lifespan"]),
-        "mean_team_lifespan": _reduce(torch.mean, batch["team_lifespan"]),
+        "mean_agent_lifespan": _reduce(torch.mean, agent_lifespan),
+        "mean_team_lifespan": _reduce(torch.mean, team_lifespan),
         "mean_episode_return": _reduce(torch.mean, episode_returns),
         "mean_episode_step": _reduce(torch.mean, episode_steps),
         "max_episode_step": _reduce(torch.max, episode_steps),
@@ -543,8 +551,8 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     learner_model = Net().to(device=flags.device)
     if flags.checkpoint_path is not None:
         logging.info(f"load checkpoint: {flags.checkpoint_path}")
-        previous_checkpoint = torch.load(flags.checkpoint_path)
-        learner_model.load_state_dict(previous_checkpoint["model_state_dict"])
+        previous_checkpoint = torch.load(flags.checkpoint_path, map_location=flags.device)
+        learner_model.load_state_dict(previous_checkpoint["model_state_dict"], strict=(not flags.upgrade_model))
     actor_model.share_memory()
     actor_model.load_state_dict(learner_model.state_dict())
 
@@ -584,6 +592,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
         "grad_norm",
         "valid_data_frac",
         "mean_agent_lifespan",
+        "mean_team_lifespan",
     ]
     logger.info("# Step\t{}".format("\t".join(stat_keys)))
 

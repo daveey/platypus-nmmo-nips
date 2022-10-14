@@ -71,7 +71,8 @@ class MonobeastBaseline(Team):
                 "sell_price": out["sell_price"].item(),
                 "use_target": out["use_target"].item(),
                 "send_token": out["send_token"].item(),
-                "attack_target": out["attack_target"].item()
+                "attack_target": out["attack_target"].item(),
+                "attack_style": out["attack_style"].item()
             }
 
         # print("actions", actions[0])
@@ -93,5 +94,5 @@ class MonobeastBaseline(Team):
 class Submission:
     team_klass = MonobeastBaseline
     init_params = {
-        #"checkpoint_path": "xcxc"
+        "checkpoint_path": "my-submission/model.pt"
     }

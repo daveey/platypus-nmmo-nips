@@ -32,6 +32,8 @@ class FeatureParser:
         spaces.Box(low=0, high=1, shape=(5, ), dtype=np.float32),
         "va_attack_target":
         spaces.Box(low=0, high=1, shape=(16, ), dtype=np.float32),
+        "va_attack_style":
+        spaces.Box(low=0, high=1, shape=(3, ), dtype=np.float32),
         "va_use_target":
         spaces.Box(low=0, high=1, shape=(170, ), dtype=np.float32),
         "va_buy_target":
@@ -77,6 +79,7 @@ class FeatureParser:
                 "market": market,
                 "va_move": va_move,
                 "va_attack_target": va_attack_target,
+                "va_attack_style": np.ones(3),
                 "va_use_target": va_use_target,
                 "va_buy_target": va_buy_target,
                 "va_sell_target": va_sell_target,

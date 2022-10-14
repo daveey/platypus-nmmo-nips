@@ -11,6 +11,7 @@ class ActionHead(nn.Module):
     name2dim = {
         "move": 5, 
         "attack_target": 16, 
+        "attack_style": 3, 
         "use_target": 170, 
         "sell_target": 170, 
         "buy_target": 170, 

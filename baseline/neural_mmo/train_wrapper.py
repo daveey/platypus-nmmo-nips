@@ -12,7 +12,7 @@ from neurips2022nmmo.scripted.scripted_team import ScriptedTeam
 from numpy import ndarray
 
 from neural_mmo import FeatureParser, RewardParser
-
+from neural_mmo import tasks
 
 class TrainEnv(Wrapper):
     max_step = 1024
@@ -96,12 +96,6 @@ class TrainEnv(Wrapper):
 
         if self._step >= self.max_step:
             done = {uid: True for uid in self.agents}
-
-        for a, d in done.items():
-            if d and info[a]["mask"]:
-                info[a]["agent_lifespan"] = self._step
-                if all([done[a//8 + b] or (not info[a//8 + b]["mask"]) for b in range(0, 8)]):
-                    info[a // 8]["team_lifespan"] = self._step
 
         return obs, reward, done, info
 
@@ -204,7 +198,7 @@ class TrainEnv(Wrapper):
                 move = actions[tid][pid]["move"]
                 decisions[tid][pid].update({
                     nmmo.action.Attack: {
-                        nmmo.action.Style: 0,
+                        nmmo.action.Style: actions[tid][pid]["attack_style"],
                         nmmo.action.Target: actions[tid][pid]["attack_target"]
                     }
                 })
@@ -254,5 +248,6 @@ class TrainConfig(CompetitionConfig):
     def __init__(self, flags):
         super().__init__()
         self.MAP_N = flags.num_maps
+        self.TASKS = tasks.All
         #self.MAP_CENTER = flags.map_size
         
