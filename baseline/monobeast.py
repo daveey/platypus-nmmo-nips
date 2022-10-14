@@ -512,6 +512,7 @@ def checkpoint(flags, model: nn.Module, step: int):
         {
             "model_state_dict": model.state_dict(),
             "flags": vars(flags),
+            "step": step
         },
         checkpointpath.joinpath(f"model_{step}.pt"),
     )
@@ -548,12 +549,15 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
 
     env = create_env(flags)
 
+    step, stats = 0, {}
+
     actor_model = Net()
     learner_model = Net().to(device=flags.device)
     if flags.checkpoint_path is not None:
         logging.info(f"load checkpoint: {flags.checkpoint_path}")
         previous_checkpoint = torch.load(flags.checkpoint_path, map_location=flags.device)
         checkpoint_state_dict = previous_checkpoint["model_state_dict"]
+        step = previous_checkpoint["step"]
         if flags.upgrade_model:
             model_state_dict = learner_model.state_dict()
             new_state_dict = {
@@ -606,8 +610,6 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
         "mean_team_lifespan",
     ]
     logger.info("# Step\t{}".format("\t".join(stat_keys)))
-
-    step, stats = 0, {}
 
     def batch_and_learn():
         """Thread target for the learning process."""
