@@ -552,7 +552,17 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     if flags.checkpoint_path is not None:
         logging.info(f"load checkpoint: {flags.checkpoint_path}")
         previous_checkpoint = torch.load(flags.checkpoint_path, map_location=flags.device)
-        learner_model.load_state_dict(previous_checkpoint["model_state_dict"], strict=(not flags.upgrade_model))
+        checkpoint_state_dict = previous_checkpoint["model_state_dict"]
+        if flags.upgrade_model:
+            model_state_dict = learner_model.state_dict()
+            new_state_dict = {
+                k:v if v.size()==model_state_dict[k].size()  
+                    else  model_state_dict[k] for k,v in 
+                        zip(model_state_dict.keys(), checkpoint_state_dict.values())
+            }
+            checkpoint_state_dict = new_state_dict
+        learner_model.load_state_dict(checkpoint_state_dict, strict=(not flags.upgrade_model))
+
     actor_model.share_memory()
     actor_model.load_state_dict(learner_model.state_dict())
 
