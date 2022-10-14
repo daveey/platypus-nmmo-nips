@@ -97,6 +97,10 @@ class TrainEnv(Wrapper):
         if self._step >= self.max_step:
             done = {uid: True for uid in self.agents}
 
+        if all(done.values()):
+            for uid in self.agents:
+                info[uid]["metrics"] = metrics[uid]
+
         return obs, reward, done, info
 
     def _get(

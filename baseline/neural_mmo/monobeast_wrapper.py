@@ -46,10 +46,13 @@ class MonobeastEnv:
             for aid,ainfo in info_.items():
                 info_[aid]["agent_lifespan"] = ainfo["episode_step"]
                 info_[aid]["game_over"] = True
+                for mk, mv in ainfo["metrics"].items():
+                    if mk in ["DamageTaken", "PlayerDefeats"]:
+                        info_[aid]["agent_" + mk.lower()] = mv
+                del info_[aid]["metrics"]
                 team_lifespan[aid // 8] = max(team_lifespan[aid // 8], ainfo["episode_step"])
             for aid,ainfo in info_.items():
                 info_[aid]["team_lifespan"] = team_lifespan[aid // 8]
-
         obs = tree.map_structure(to_tensor, obs)
         reward = tree.map_structure(to_tensor, reward)
         done = tree.map_structure(to_tensor, done)

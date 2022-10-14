@@ -152,6 +152,8 @@ def create_buffers(
         episode_step=dict(size=(), dtype=torch.int32),
         value=dict(size=(), dtype=torch.float32),
         agent_lifespan=dict(size=(), dtype=torch.int32),
+        agent_damagetaken=dict(size=(), dtype=torch.int32),
+        agent_playerdefeats=dict(size=(), dtype=torch.int32),
         team_lifespan=dict(size=(), dtype=torch.int32),
         game_over=dict(size=(), dtype=torch.bool),
     ))
@@ -442,6 +444,8 @@ def learn(
 
     # yapf: disable
     stats = {
+        "mean_agent_damagetaken": _reduce(torch.mean, batch["agent_damagetaken"][game_over]),
+        "mean_agent_playerdefeats": _reduce(torch.mean, batch["agent_playerdefeats"][game_over]),
         "mean_agent_lifespan": _reduce(torch.mean, agent_lifespan),
         "mean_team_lifespan": _reduce(torch.mean, team_lifespan),
         "mean_episode_return": _reduce(torch.mean, episode_returns),
@@ -608,6 +612,8 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
         "valid_data_frac",
         "mean_agent_lifespan",
         "mean_team_lifespan",
+        "mean_agent_damagetaken",
+        "mean_agent_playerdefeats",
     ]
     logger.info("# Step\t{}".format("\t".join(stat_keys)))
 
