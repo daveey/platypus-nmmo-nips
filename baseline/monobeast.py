@@ -2,6 +2,7 @@ import argparse
 from email.policy import strict
 import logging
 import pprint
+import subprocess
 import threading
 import time
 import timeit
@@ -694,10 +695,18 @@ if __name__ == "__main__":
     flags = parser.parse_args()
     flags.num_agents = flags.num_selfplay_team * TrainEnv.num_team_member
     if flags.wandb:
-        # flags_dict = omegaconf.OmegaConf.to_container(flags)
+
+        try:
+            commit_sha = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
+        except:
+            commit_sha = "n/a"
+
+        config = dict(vars(flags))
+        config['commit'] = commit_sha
+
         wandb.init(
             project=flags.project,
-            config=flags,
+            config=config,
             group=flags.group,
             entity=flags.entity,
         )
