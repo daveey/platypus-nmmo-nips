@@ -705,9 +705,11 @@ if __name__ == "__main__":
         config['commit'] = commit_sha
 
         wandb.init(
+            id=flags.xpid, # run ID
             project=flags.project,
             config=config,
             group=flags.group,
             entity=flags.entity,
+            resume="allow",
         )
     train(flags)
