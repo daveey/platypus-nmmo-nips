@@ -38,6 +38,7 @@ class MonobeastEnv:
             self._info[agent_id]["episode_return"] += reward[agent_id]
             self._info[agent_id].update(info[agent_id])
         info_ = self._info
+
         if all(done.values()):
             obs = self.env.reset()
             self._info = self.reset_info()
@@ -53,6 +54,7 @@ class MonobeastEnv:
                 team_lifespan[aid // 8] = max(team_lifespan[aid // 8], ainfo["episode_step"])
             for aid,ainfo in info_.items():
                 info_[aid]["team_lifespan"] = team_lifespan[aid // 8]
+
         obs = tree.map_structure(to_tensor, obs)
         reward = tree.map_structure(to_tensor, reward)
         done = tree.map_structure(to_tensor, done)

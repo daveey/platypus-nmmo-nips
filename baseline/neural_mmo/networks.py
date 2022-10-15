@@ -125,6 +125,17 @@ class NMMONet(nn.Module):
         self.item_fc1 = nn.Linear(14, 32)
         self.item_fc2 = nn.Linear(25*32, 32)
 
+        self.lstm = nn.LSTMCell(64, 64)
+        
+        # self.memory_net = nn.Sequential(
+        #     nn.Linear(1024*8, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 64),
+        #     nn.ReLU(),
+        # )
+
         self.fc = nn.Linear(64 + 32 + 32 + 32 + 32, 64)
         self.action_head = ActionHead(64)
         self.value_head = nn.Linear(64, 1)
@@ -147,7 +158,7 @@ class NMMONet(nn.Module):
 
         local_map = torch.flatten(local_map, 0, 1).to(torch.float32)
         local_map_emb = self.local_map_cnn(local_map)
-        local_map_emb = local_map_emb.view(T * B, -1).view(T, B, -1)
+        local_map_emb = local_map_emb.view(T, B, -1)
         local_map_emb = F.relu(self.local_map_fc(local_map_emb))
 
         return local_map_emb
@@ -177,6 +188,16 @@ class NMMONet(nn.Module):
  
         return item_emb
 
+    def memory_embedding(self, input_dict, input):
+        hx = input_dict["memory"][0]
+        hc = input_dict["memory"][1]
+        
+        hx, cx = self.lstm(input, (hx, cx))
+        return (hx, cx)
+
+        # return self.memory_net(input_dict["memory"])
+
+
     def forward(
         self,
         input_dict: Dict,
@@ -192,10 +213,19 @@ class NMMONet(nn.Module):
                       dim=-1)
         x = F.relu(self.fc(x))
 
-        logits = self.action_head(x)
-        value = self.value_head(x).view(T, B)
+        memory = input_dict["memory"].view(T*B, 2, 64).float()
+        hx, cx = self.lstm(x.view(T*B, 64), (memory[:,0], memory[:,1]))
+        hx = hx.view(T, B, 64)
+        cx = hx.view(T, B, 64)
 
-        output = {"value": value}
+        logits = self.action_head(hx)
+        value = self.value_head(hx).view(T, B)
+
+        output = {
+            "value": value,
+            "memory": torch.stack([hx, cx], dim=1).view(T, B, 2, 64)
+        }
+
         for key, val in logits.items():
             if not training:
                 dist = MaskedPolicy(val, input_dict[f"va_{key}"])

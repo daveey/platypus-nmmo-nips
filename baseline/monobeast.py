@@ -278,6 +278,9 @@ def act(
                 next_obs, reward, done, info = env.step(actions)
                 timings.time("step")
 
+                for aid, out in agent_output.items():
+                    next_obs[aid]["memory"] = out["memory"]
+
                 store(
                     buffers=buffers,
                     free_indices=free_indices,
@@ -430,6 +433,7 @@ def learn(
     episode_end = (batch["done"] == True) & (batch["mask"] == True)
     episode_returns = batch["episode_return"][episode_end]
     episode_steps = batch["episode_step"][episode_end]
+
     game_over = batch["game_over"] == True
 
     agent_lifespan = batch["agent_lifespan"][game_over]
