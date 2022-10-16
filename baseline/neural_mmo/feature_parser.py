@@ -228,18 +228,18 @@ class FeatureParser:
             va_sell[int(e[1])] = float(e[5] > 0 and e[4] > 0)
             va_use[int(e[1])] = float(e[4] > 0 and e[4] > 0)
             item_list.append(np.array([
-                float(e[2]) / 1, # Level
-                float(e[3]) / 1, # Capacity
-                float(e[4]) / 1, # Quantity
+                float(e[2]) / 10, # Level
+                float(e[3]) / 100, # Capacity
+                float(e[4]) / 100, # Quantity
                 float(e[5]) / 1, # Tradable
-                float(e[6]) / 10, # MeleeAttack
-                float(e[7]) / 10, # RangeAttack
-                float(e[8]) / 10, # MageAttack
-                float(e[9]) / 10, # MeleeDefense
-                float(e[10]) / 10, # RangeDefense
-                float(e[11]) / 10, # MageDefense
-                float(e[12]) / 10, # HealthRestore
-                float(e[13]) / 1, # ResourceRestore
+                float(e[6]) / 100, # MeleeAttack
+                float(e[7]) / 100, # RangeAttack
+                float(e[8]) / 100, # MageAttack
+                float(e[9]) / 100, # MeleeDefense
+                float(e[10]) / 100, # RangeDefense
+                float(e[11]) / 100, # MageDefense
+                float(e[12]) / 100, # HealthRestore
+                float(e[13]) / 100, # ResourceRestore
                 float(e[14]) / 1000, # Price
                 float(e[15]) / 1, # Equiped
             ], dtype=np.float32))
@@ -270,18 +270,18 @@ class FeatureParser:
                 break
             va_buy[int(e[1])] = float(e[14] < money and e[4] > 0)
             item_list.append(np.array([
-                float(e[2]) / 1, # Level
-                float(e[3]) / 1, # Capacity
-                float(e[4]) / 1, # Quantity
+                float(e[2]) / 10, # Level
+                float(e[3]) / 100, # Capacity
+                float(e[4]) / 100, # Quantity
                 float(e[5]) / 1, # Tradable
-                float(e[6]) / 10, # MeleeAttack
-                float(e[7]) / 10, # RangeAttack
-                float(e[8]) / 10, # MageAttack
-                float(e[9]) / 10, # MeleeDefense
-                float(e[10]) / 10, # RangeDefense
-                float(e[11]) / 10, # MageDefense
-                float(e[12]) / 10, # HealthRestore
-                float(e[13]) / 1, # ResourceRestore
+                float(e[6]) / 100, # MeleeAttack
+                float(e[7]) / 100, # RangeAttack
+                float(e[8]) / 100, # MageAttack
+                float(e[9]) / 100, # MeleeDefense
+                float(e[10]) / 100, # RangeDefense
+                float(e[11]) / 100, # MageDefense
+                float(e[12]) / 100, # HealthRestore
+                float(e[13]) / 100, # ResourceRestore
                 float(e[14]) / 1000, # Price
                 float(e[15]) / 1, # Equiped
             ], dtype=np.float32))
