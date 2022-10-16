@@ -278,6 +278,14 @@ def act(
                 next_obs, reward, done, info = env.step(actions)
                 timings.time("step")
 
+                for tid in range(8):
+                    m = torch.stack([
+                        agent_output.get(tid * 8 + a, 
+                        { "memory": torch.zeros(2, 64) })["memory"] for a in range(8)
+                    ])
+                    for a in range(8):
+                        next_obs[tid*8 + a]["team_memory"] = m
+
                 for aid, out in agent_output.items():
                     next_obs[aid]["memory"] = out["memory"]
 

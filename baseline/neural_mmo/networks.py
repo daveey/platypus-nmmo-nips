@@ -127,16 +127,16 @@ class NMMONet(nn.Module):
 
         self.lstm = nn.LSTMCell(64, 64)
         
-        # self.memory_net = nn.Sequential(
-        #     nn.Linear(1024*8, 64),
-        #     nn.ReLU(),
-        #     nn.Linear(64, 64),
-        #     nn.ReLU(),
-        #     nn.Linear(64, 64),
-        #     nn.ReLU(),
-        # )
+        self.team_memory_net = nn.Sequential(
+            nn.Linear(8*2*64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+        )
 
-        self.fc = nn.Linear(64 + 32 + 32 + 32 + 32, 64)
+        self.fc = nn.Linear(64 + 32 + 32 + 32 + 32 + 64, 64)
         self.action_head = ActionHead(64)
         self.value_head = nn.Linear(64, 1)
 
@@ -188,16 +188,6 @@ class NMMONet(nn.Module):
  
         return item_emb
 
-    def memory_embedding(self, input_dict, input):
-        hx = input_dict["memory"][0]
-        hc = input_dict["memory"][1]
-        
-        hx, cx = self.lstm(input, (hx, cx))
-        return (hx, cx)
-
-        # return self.memory_net(input_dict["memory"])
-
-
     def forward(
         self,
         input_dict: Dict,
@@ -208,8 +198,9 @@ class NMMONet(nn.Module):
         self_entity_emb, other_entity_emb = self.entity_embedding(input_dict)
         items = self.item_embedding(input_dict["items"])
         market = self.item_embedding(input_dict["market"])
+        team_memory = self.team_memory_net(input_dict["team_memory"].float().view(T, B, -1))
 
-        x = torch.cat([local_map_emb, self_entity_emb, other_entity_emb, items, market],
+        x = torch.cat([local_map_emb, self_entity_emb, other_entity_emb, items, market, team_memory],
                       dim=-1)
         x = F.relu(self.fc(x))
 
