@@ -23,13 +23,14 @@ class MonobeastBaseline(Team):
         if checkpoint_path is not None:
             print(f"load checkpoint: {checkpoint_path}")
             checkpoint = torch.load(checkpoint_path, map_location="cpu")
-            self.model.load_state_dict(checkpoint["model_state_dict"])
+            self.model.load_state_dict(checkpoint["model_state_dict"], strict=False)
         self.feature_parser = FeatureParser()
         self.reset()
 
     def reset(self):
         self.my_script = {0: MyMeleeTeam("MyMelee", self.env_config)}
         self.step = 0
+        self.memory = {}
 
     def log_self(self, features):
         se = features["self_entity"][0][0][0][0]
@@ -54,6 +55,10 @@ class MonobeastBaseline(Team):
         feature = self.feature_parser.parse(observations, self.step)
         feature = tree.map_structure(
             lambda x: torch.from_numpy(x).view(1, 1, *x.shape), feature)
+        for a, af in feature.items():
+            af["memory"] = self.memory.get(a, torch.zeros(2, 64))
+            af["team_memory"] = [torch.stack(self.memory[a // 8 + ta]) for ta in range(8)]
+
         feature_batch, ids = batch(feature, self.feature_parser.spec.keys())
         output = self.model(feature_batch, training=False)
         output = unbatch(output, ids)
@@ -74,6 +79,7 @@ class MonobeastBaseline(Team):
                 "attack_target": out["attack_target"].item(),
                 "attack_style": out["attack_style"].item()
             }
+            self.memory[i] = out["memory"]
 
         # print("actions", actions[0])
         actions = TrainEnv.transform_action({0: actions}, {0: observations},
