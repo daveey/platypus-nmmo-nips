@@ -12,7 +12,7 @@ PROFESSION = ["MeleeLevel"]
 
 class RewardParser:
     def __init__(self, phase: str = "phase1"):
-        assert phase in ["phase1", "phase2", "team", "life"]
+        assert phase in ["phase1", "phase2", "team", "life", "team-kill"]
         self.phase = phase
         self.best_ever_equip_level = defaultdict(
             lambda: defaultdict(lambda: 0))
@@ -28,6 +28,15 @@ class RewardParser:
         step: int,
         done: Dict[int, bool]
     ) -> Dict[int, float]:
+
+        if self.phase == "team-kill":
+            team_reward = {a: 0 for a in range(8)}
+            for agent_id in curr_metric:
+                curr, prev = curr_metric[agent_id], prev_metric[agent_id]
+                team_reward[agent_id // 8] += float(curr["PlayerDefeats"] - prev["PlayerDefeats"]) / 100
+
+            rewards = { a: team_reward[a//8] for a in curr_metric }
+            return rewards
 
         if self.phase == "life":
             return {a: float(step) / 1024 for a in obs}
