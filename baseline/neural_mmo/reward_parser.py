@@ -15,49 +15,51 @@ PROFESSION = [
     'AlchemyLevel',
 ]
 
-STATS = [
-    'PlayerDefeats', 
-    'TimeAlive', 
-    'DamageTaken', 
-    'Profession', 
-    'MeleeLevel', 
-    'RangeLevel', 
-    'MageLevel', 
-    'FishingLevel',
-    'HerbalismLevel',
-    'ProspectingLevel',
-    'CarvingLevel',
-    'AlchemyLevel',
-    'HatLevel',
-    'TopLevel',
-    'BottomLevel',
-    'HeldLevel',
-    'AmmunitionLevel',
-    'MeleeAttack',
-    'RangeAttack',
-    'MageAttack',
-    'MeleeDefense',
-    'RangeDefense',
-    'MageDefense', 
-    'Equipment',
-    'RationConsumed',
-    'PoulticeConsumed',
-    'RationLevelConsumed',
-    'PoulticeLevelConsumed', 
-    'Gold', 
-    'Sells', 
-    'Buys'
-]
+GOALS = {
+    'PlayerDefeats': 128, 
+    'TimeAlive': 1024, 
+    'DamageTaken': -1000, 
+    'Profession': 10, 
+    'MeleeLevel': 10, 
+    'RangeLevel': 10, 
+    'MageLevel': 10, 
+    'FishingLevel': 10,
+    'HerbalismLevel': 10,
+    'ProspectingLevel': 10,
+    'CarvingLevel': 10,
+    'AlchemyLevel': 10,
+    'HatLevel': 10,
+    'TopLevel': 10,
+    'BottomLevel': 10,
+    'HeldLevel': 10,
+    'AmmunitionLevel': 10,
+    'MeleeAttack': 100,
+    'RangeAttack': 100,
+    'MageAttack': 100,
+    'MeleeDefense': 100,
+    'RangeDefense': 100,
+    'MageDefense': 100,
+    'Equipment': 10,
+    'RationConsumed': 10,
+    'PoulticeConsumed': 10,
+    'RationLevelConsumed': 10,
+    'PoulticeLevelConsumed': 10,
+    'Gold': 10,
+}
 
 class RewardParser:
     def __init__(self, phase: str = "phase1"):
-        assert phase in ["phase1", "phase2", "team", "life", "team-kill"]
+        assert phase in ["baseline", "team-kill", "randomized"]
         self.phase = phase
         self.best_ever_equip_level = defaultdict(
             lambda: defaultdict(lambda: 0))
+        self.reset()
 
     def reset(self):
         self.best_ever_equip_level.clear()
+        if self.phase == "randomized":
+            self.goal_weights = np.random.rand(len(GOALS))
+            self.team_goal_weights = np.random.rand(len(GOALS))
 
     def parse(
         self,
@@ -67,16 +69,62 @@ class RewardParser:
         step: int,
         done: Dict[int, bool]
     ) -> Dict[int, float]:
-        team_kill_reward = {a: 0 for a in range(8)}
+
+        if self.phase == "baseline":
+            return self.baseline_reward(prev_metric, curr_metric, obs, step, done)
+
+        if self.phase == "randomized":
+            return self.weighted_reward(prev_metric, curr_metric, obs, step, done)
+
+        if self.phase == "team-kill":
+            return self.team_kill_reward(prev_metric, curr_metric, obs, step, done)
+
+        assert False
+
+    def weighted_reward(
+        self,
+        prev_metric: Dict[int, Metrics],
+        curr_metric: Dict[int, Metrics],
+        obs: Dict[int, Dict[str, np.ndarray]],
+        step: int,
+        done: Dict[int, bool]
+    ) -> Dict[int, float]:
+        reward = {}
+        team_reward = {t: 0 for t in range(8)}
+        food, water = self.extract_info_from_obs(obs)
+
         for agent_id in curr_metric:
             curr, prev = curr_metric[agent_id], prev_metric[agent_id]
-            team_kill_reward[agent_id // 8] += float(curr["PlayerDefeats"] - prev["PlayerDefeats"])
+            deltas = np.array([(curr[k] - prev[k]) / GOALS[k] for k in GOALS])
 
-        if self.phase == "life":
-            return {a: float(step) / 1024 for a in obs}
+            reward[agent_id] = sum(deltas * self.goal_weights)
+            team_reward[agent_id // 8] = sum(deltas * self.team_goal_weights) / 8
 
+        return {a: reward[a] + team_reward[a//8] for a in reward}
+
+    def team_kill_reward(
+        self,
+        prev_metric: Dict[int, Metrics],
+        curr_metric: Dict[int, Metrics],
+        obs: Dict[int, Dict[str, np.ndarray]],
+        step: int,
+        done: Dict[int, bool]
+    ) -> Dict[int, float]:
+        team_rewards = {t: 0 for t in range(8)}
+        for agent_id in curr_metric:
+            team_rewards[agent_id // 8] += float(curr_metric[agent_id]["PlayerDefeats"] - prev_metric[agent_id]["PlayerDefeats"]) / 8
+        baseline = self.baseline_reward(prev_metric, curr_metric, obs, step, done)
+        return {a: baseline[a] + team_rewards[a // 8] for a in baseline}
+
+    def baseline_reward(
+        self,
+        prev_metric: Dict[int, Metrics],
+        curr_metric: Dict[int, Metrics],
+        obs: Dict[int, Dict[str, np.ndarray]],
+        step: int,
+        done: Dict[int, bool]
+    ) -> Dict[int, float]:
         reward = {}
-        team_reward = { t: 0 for t in range(8) }
         food, water = self.extract_info_from_obs(obs)
         for agent_id in curr_metric:
             curr, prev = curr_metric[agent_id], prev_metric[agent_id]
@@ -96,33 +144,20 @@ class RewardParser:
                     r += delta * 0.1 * curr[e]
                     self.best_ever_equip_level[agent_id][e] = curr[e]
             # DamageTaken penalty
-            # r -= (curr["DamageTaken"] - prev["DamageTaken"]) * 0.01
+            r -= (curr["DamageTaken"] - prev["DamageTaken"]) * 0.01
             # Starvation penalty
             if agent_id in food and food[agent_id] == 0:
                 r -= 0.1
             if agent_id in water and water[agent_id] == 0:
                 r -= 0.1
 
-            # Gold
-            r += max(0, curr["Gold"] - prev["Gold"]) * 0.001
-
             # Death penalty
             if agent_id in done and done[agent_id]:
                 r -= 5.0
 
             # Team reward
-            r += team_kill_reward[agent_id // 8]
-
             reward[agent_id] = r
 
-            if agent_id in done and not done[agent_id]:
-                team_reward[agent_id // 8] += r
-    
-
-        if self.phase == "team":
-            return {
-                a: reward[a] / 10 + team_reward[a // 8] / 8 for a in reward
-            }
         return reward
 
     def extract_info_from_obs(self, obs: Dict[int, Dict[str, np.ndarray]]):

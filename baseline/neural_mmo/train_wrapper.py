@@ -55,6 +55,10 @@ class TrainEnv(Wrapper):
         for a in obs.keys():
             obs[a]["memory"] = np.zeros([2, 64])
             obs[a]["team_memory"] = np.zeros([8, 2, 64])
+            obs[a]["goal"] = np.stack(
+                [self.reward_parser.goal_weights, 
+                self.reward_parser.team_goal_weights])
+
         metrics = self._flatten(self._get(self.metrices_by_team()))
 
         self.agents = list(obs.keys())
@@ -83,6 +87,10 @@ class TrainEnv(Wrapper):
         metrics = self._flatten(self._get(self.metrices_by_team()))
         reward = self.reward_parser.parse(self._prev_metrics, metrics, obs,
                                           self._step, done)
+        for a in obs.keys():
+            obs[a]["goal"] = np.stack([
+                self.reward_parser.goal_weights, 
+                self.reward_parser.team_goal_weights])
 
         self._prev_raw_obs = raw_obs
         self._prev_metrics = metrics

@@ -136,7 +136,12 @@ class NMMONet(nn.Module):
             nn.ReLU(),
         )
 
-        self.fc = nn.Linear(64 + 32 + 32 + 32 + 32 + 64, 64)
+        self.goal_fc1 = nn.Linear(2*29, 32)
+        self.goal_fc2 = nn.Linear(32, 32)
+
+        self.fc1 = nn.Linear(64 + 32 + 32 + 32 + 32 + 64 + 32, 64)
+        self.fc2 = nn.Linear(64, 64)
+
         self.action_head = ActionHead(64)
         self.value_head = nn.Linear(64, 1)
 
@@ -200,9 +205,14 @@ class NMMONet(nn.Module):
         market = self.item_embedding(input_dict["market"])
         team_memory = self.team_memory_net(input_dict["team_memory"].float().view(T, B, -1))
 
-        x = torch.cat([local_map_emb, self_entity_emb, other_entity_emb, items, market, team_memory],
-                      dim=-1)
-        x = F.relu(self.fc(x))
+        goal = F.relu(self.goal_fc1(input_dict["goal"].float().view(T,B, -1)))
+        goal = F.relu(self.goal_fc2(goal))
+
+        x = torch.cat([
+            local_map_emb, self_entity_emb, other_entity_emb, 
+            items, market, team_memory, goal], dim=-1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
 
         memory = input_dict["memory"].view(T*B, 2, 64).float()
         hx, cx = self.lstm(x.view(T*B, 64), (memory[:,0], memory[:,1]))
