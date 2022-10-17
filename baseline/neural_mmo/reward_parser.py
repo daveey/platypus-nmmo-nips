@@ -7,8 +7,47 @@ from neurips2022nmmo import Metrics
 EQUIPMENT = [
     "HatLevel", "BottomLevel", "TopLevel", "HeldLevel", "AmmunitionLevel"
 ]
-PROFESSION = ["MeleeLevel"]
+PROFESSION = [
+    "MeleeLevel", "RangeLevel", "MageLevel", "FishingLevel",     
+    'HerbalismLevel',
+    'ProspectingLevel',
+    'CarvingLevel',
+    'AlchemyLevel',
+]
 
+STATS = [
+    'PlayerDefeats', 
+    'TimeAlive', 
+    'DamageTaken', 
+    'Profession', 
+    'MeleeLevel', 
+    'RangeLevel', 
+    'MageLevel', 
+    'FishingLevel',
+    'HerbalismLevel',
+    'ProspectingLevel',
+    'CarvingLevel',
+    'AlchemyLevel',
+    'HatLevel',
+    'TopLevel',
+    'BottomLevel',
+    'HeldLevel',
+    'AmmunitionLevel',
+    'MeleeAttack',
+    'RangeAttack',
+    'MageAttack',
+    'MeleeDefense',
+    'RangeDefense',
+    'MageDefense', 
+    'Equipment',
+    'RationConsumed',
+    'PoulticeConsumed',
+    'RationLevelConsumed',
+    'PoulticeLevelConsumed', 
+    'Gold', 
+    'Sells', 
+    'Buys'
+]
 
 class RewardParser:
     def __init__(self, phase: str = "phase1"):
@@ -28,7 +67,6 @@ class RewardParser:
         step: int,
         done: Dict[int, bool]
     ) -> Dict[int, float]:
-
         team_kill_reward = {a: 0 for a in range(8)}
         for agent_id in curr_metric:
             curr, prev = curr_metric[agent_id], prev_metric[agent_id]
