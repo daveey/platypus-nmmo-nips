@@ -91,8 +91,6 @@ class FeatureParser:
                 "va_sell_target": va_sell_target,
                 "va_send_token": np.ones(170),
                 "va_sell_price": np.ones(6),
-                "memory": np.zeros([2, 64]),
-                "team_memory": np.zeros([8, 2, 64])
             }
         return {
             agent_id: agent_obs.get(agent_id, self._dummy_features)

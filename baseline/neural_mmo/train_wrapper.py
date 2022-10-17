@@ -52,6 +52,9 @@ class TrainEnv(Wrapper):
         raw_obs = super().reset()
         obs = self._flatten(self._get(raw_obs))
         obs = self.feature_parser.parse(obs, self._step)
+        for a in obs.keys():
+            obs[a]["memory"] = np.zeros([2, 64])
+            obs[a]["team_memory"] = np.zeros([8, 2, 64])
         metrics = self._flatten(self._get(self.metrices_by_team()))
 
         self.agents = list(obs.keys())
