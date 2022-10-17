@@ -29,14 +29,10 @@ class RewardParser:
         done: Dict[int, bool]
     ) -> Dict[int, float]:
 
-        if self.phase == "team-kill":
-            team_reward = {a: 0 for a in range(8)}
-            for agent_id in curr_metric:
-                curr, prev = curr_metric[agent_id], prev_metric[agent_id]
-                team_reward[agent_id // 8] += float(curr["PlayerDefeats"] - prev["PlayerDefeats"]) / 100
-
-            rewards = { a: team_reward[a//8] for a in curr_metric }
-            return rewards
+        team_kill_reward = {a: 0 for a in range(8)}
+        for agent_id in curr_metric:
+            curr, prev = curr_metric[agent_id], prev_metric[agent_id]
+            team_kill_reward[agent_id // 8] += float(curr["PlayerDefeats"] - prev["PlayerDefeats"])
 
         if self.phase == "life":
             return {a: float(step) / 1024 for a in obs}
@@ -62,18 +58,20 @@ class RewardParser:
                     r += delta * 0.1 * curr[e]
                     self.best_ever_equip_level[agent_id][e] = curr[e]
             # DamageTaken penalty
-            r -= (curr["DamageTaken"] - prev["DamageTaken"]) * 0.01
+            # r -= (curr["DamageTaken"] - prev["DamageTaken"]) * 0.01
             # Starvation penalty
             if agent_id in food and food[agent_id] == 0:
                 r -= 0.1
             if agent_id in water and water[agent_id] == 0:
                 r -= 0.1
 
-            # phase2 only
-            if self.phase == "phase2":
-                # Death penalty
-                if agent_id in done and done[agent_id]:
-                    r -= 5.0
+            # Death penalty
+            if agent_id in done and done[agent_id]:
+                r -= 5.0
+
+            # Team reward
+            r += team_kill_reward[agent_id // 8]
+
             reward[agent_id] = r
 
             if agent_id in done and not done[agent_id]:
