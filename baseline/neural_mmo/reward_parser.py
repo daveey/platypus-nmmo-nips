@@ -65,6 +65,9 @@ class RewardParser:
             if agent_id in water and water[agent_id] == 0:
                 r -= 0.1
 
+            # Gold
+            r += max(0, curr["Gold"] - prev["Gold"]) * 0.001
+
             # Death penalty
             if agent_id in done and done[agent_id]:
                 r -= 5.0
