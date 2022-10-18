@@ -57,7 +57,7 @@ class MonobeastBaseline(Team):
             lambda x: torch.from_numpy(x).view(1, 1, *x.shape), feature)
         for a, af in feature.items():
             af["memory"] = self.memory.get(a, torch.zeros(2, 64))
-            af["team_memory"] = [torch.stack(self.memory[a // 8 + ta]) for ta in range(8)]
+            af["team_memory"] = torch.stack([self.memory.get(a // 8 + ta, torch.zeros(2, 64)) for ta in range(8)])
 
         feature_batch, ids = batch(feature, self.feature_parser.spec.keys())
         output = self.model(feature_batch, training=False)
@@ -79,7 +79,7 @@ class MonobeastBaseline(Team):
                 "attack_target": out["attack_target"].item(),
                 "attack_style": out["attack_style"].item()
             }
-            self.memory[i] = out["memory"]
+            self.memory[i] = out["memory"][0]
 
         # print("actions", actions[0])
         actions = TrainEnv.transform_action({0: actions}, {0: observations},
