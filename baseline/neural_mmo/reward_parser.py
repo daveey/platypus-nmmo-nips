@@ -9,11 +9,17 @@ EQUIPMENT = [
     "HatLevel", "BottomLevel", "TopLevel", "HeldLevel", "AmmunitionLevel"
 ]
 PROFESSION = [
-    "MeleeLevel", "RangeLevel", "MageLevel", "FishingLevel",     
+    "FishingLevel",     
     'HerbalismLevel',
     'ProspectingLevel',
     'CarvingLevel',
     'AlchemyLevel',
+]
+
+ATTACK = [
+    "MeleeLevel", 
+    "RangeLevel", 
+    "MageLevel", 
 ]
 
 GOALS = {
@@ -77,8 +83,9 @@ class RewardParser:
         done: Dict[int, bool]
     ) -> Dict[int, float]:
 
-        if self.phase == "baseline":
+        if self.phase == "baseline" or self.phase == "specialize":
             return self.baseline_reward(prev_metric, curr_metric, obs, step, done)
+
 
         if self.phase.startswith("sparse") or self.phase.startswith("randomized"):
             return self.weighted_reward(prev_metric, curr_metric, obs, step, done)
@@ -141,9 +148,18 @@ class RewardParser:
                 r += 10.0
             # Defeats reward
             r += (curr["PlayerDefeats"] - prev["PlayerDefeats"]) * 0.5
+
             # Profession reward
             for p in PROFESSION:
+                pr = (curr[p] - prev[p]) * 0.1 * curr[p]
+                if self.phase == "specialize" and p == PROFESSION[agent_id % len(PROFESSION)]:
+                    pr *= 3
+                r += pr
+
+            # Combat reward
+            for p in ATTACK:
                 r += (curr[p] - prev[p]) * 0.1 * curr[p]
+
             # Equipment reward
             for e in EQUIPMENT:
                 delta = curr[e] - self.best_ever_equip_level[agent_id][e]
