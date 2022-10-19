@@ -106,6 +106,10 @@ parser.add_argument("--num_maps", default=1, type=int, metavar="B",
                     help="Number of training maps per actor.")
 parser.add_argument("--map_size", default=128, type=int, metavar="B",
                     help="Size of training map.")
+parser.add_argument("--team_memory", action="store_true",
+                    help="Share memory across players.")
+parser.add_argument("--agent_lstm", action="store_true",
+                    help="Use an lstm for each agent.")
 # yapf: enable
 
 logging.basicConfig(
@@ -279,15 +283,20 @@ def act(
                 timings.time("step")
 
                 for tid in range(8):
-                    m = torch.stack([
-                        agent_output.get(tid * 8 + a, 
-                        { "memory": torch.zeros(2, 64) })["memory"] for a in range(8)
-                    ])
+                    if flags.team_memory:
+                        m = torch.stack([
+                            agent_output.get(tid * 8 + a, 
+                            { "memory": torch.zeros(2, 64) })["memory"] for a in range(8)
+                        ])
+                    else:
+                        m = torch.zeros((8, 2, 64))
+
                     for a in range(8):
                         next_obs[tid*8 + a]["team_memory"] = m
 
                 for aid, out in agent_output.items():
-                    next_obs[aid]["memory"] = out["memory"]
+                    next_obs[aid]["memory"] = (
+                        out["memory"] if flags.agent_lstm else torch.zeros(2, 64))
 
                 store(
                     buffers=buffers,

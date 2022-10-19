@@ -1,3 +1,5 @@
+git clone git@github.com:daveey/platypus-nmmo-nips.git
+
 git clone https://github.com/daveey/platypus-nmmo-nips.git
 echo 'alias de="sudo docker exec -ti platypus /bin/bash"' >> ~/.bashrc
 echo 'alias db="sudo docker build -t platypus ."' >> ~/.bashrc
