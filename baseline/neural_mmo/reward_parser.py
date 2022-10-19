@@ -62,7 +62,7 @@ class RewardParser:
         if self.phase == "randomized":
             self.goal_weights = np.random.rand(len(GOALS))
             self.team_goal_weights = np.random.rand(len(GOALS))
-        if self.phase.startswith("sparce"):
+        if self.phase.startswith("sparse"):
             self.goal_weights = np.zeros(len(GOALS))
             for _ in range(int(self.phase.split("-")[1])):
                 self.goal_weights[np.random.randint(0, len(GOALS))] = 1.0
@@ -80,7 +80,7 @@ class RewardParser:
         if self.phase == "baseline":
             return self.baseline_reward(prev_metric, curr_metric, obs, step, done)
 
-        if self.phase.startswith("sparce") or self.phase.startswith("randomized"):
+        if self.phase.startswith("sparse") or self.phase.startswith("randomized"):
             return self.weighted_reward(prev_metric, curr_metric, obs, step, done)
 
         if self.phase == "team-kill":
