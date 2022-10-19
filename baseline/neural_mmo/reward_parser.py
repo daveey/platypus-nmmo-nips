@@ -1,4 +1,5 @@
 from collections import defaultdict
+from random import random
 from typing import Dict
 
 import numpy as np
@@ -49,10 +50,11 @@ GOALS = {
 
 class RewardParser:
     def __init__(self, phase: str = "phase1"):
-        assert phase in ["baseline", "team-kill", "randomized"]
         self.phase = phase
         self.best_ever_equip_level = defaultdict(
             lambda: defaultdict(lambda: 0))
+        self.goal_weights = np.zeros(len(GOALS))
+        self.team_goal_weights = np.zeros(len(GOALS))
         self.reset()
 
     def reset(self):
@@ -60,6 +62,11 @@ class RewardParser:
         if self.phase == "randomized":
             self.goal_weights = np.random.rand(len(GOALS))
             self.team_goal_weights = np.random.rand(len(GOALS))
+        if self.phase.startswith("sparce"):
+            self.goal_weights = np.zeros(len(GOALS))
+            for _ in range(int(self.phase.split("-")[1])):
+                self.goal_weights[np.random.randint(0, len(GOALS))] = 1.0
+                self.team_goal_weights = self.goal_weights
 
     def parse(
         self,
@@ -73,13 +80,13 @@ class RewardParser:
         if self.phase == "baseline":
             return self.baseline_reward(prev_metric, curr_metric, obs, step, done)
 
-        if self.phase == "randomized":
+        if self.phase.startswith("sparce") or self.phase.startswith("randomized"):
             return self.weighted_reward(prev_metric, curr_metric, obs, step, done)
 
         if self.phase == "team-kill":
             return self.team_kill_reward(prev_metric, curr_metric, obs, step, done)
 
-        assert False
+        assert False, "invalid --reward_setting"
 
     def weighted_reward(
         self,

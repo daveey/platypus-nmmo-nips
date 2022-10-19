@@ -58,7 +58,9 @@ class MonobeastBaseline(Team):
         for a, af in feature.items():
             af["memory"] = self.memory.get(a, torch.zeros(2, 64))
             af["team_memory"] = torch.stack([self.memory.get(a // 8 + ta, torch.zeros(2, 64)) for ta in range(8)])
-
+            af["goal"] = torch.rand((2,29))
+            # af["goal"][:,0:2] = 1
+            
         feature_batch, ids = batch(feature, self.feature_parser.spec.keys())
         output = self.model(feature_batch, training=False)
         output = unbatch(output, ids)
