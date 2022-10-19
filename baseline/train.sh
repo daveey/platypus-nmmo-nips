@@ -9,7 +9,7 @@ python monobeast.py \
     --data_reuse 8 \
     --num_actors 25 \
     --batch_size 512 \
-    --unroll_length 32 \
+    --unroll_length 256 \
     --savedir ./results \
     --checkpoint_interval 600 \
     --restart_actor_interval 18000 \
