@@ -86,12 +86,13 @@ class RewardParser:
         if self.phase == "baseline" or self.phase == "specialize":
             return self.baseline_reward(prev_metric, curr_metric, obs, step, done)
 
+        if self.phase.startswith("team-"):
+            team_weight = float(self.phase.split("-")[1]) / 100
+            return self.team_reward(prev_metric, curr_metric, obs, step, done, team_weight)
 
         if self.phase.startswith("sparse") or self.phase.startswith("randomized"):
             return self.weighted_reward(prev_metric, curr_metric, obs, step, done)
 
-        if self.phase == "team-kill":
-            return self.team_kill_reward(prev_metric, curr_metric, obs, step, done)
 
         assert False, "invalid --reward_setting"
 
@@ -116,19 +117,22 @@ class RewardParser:
 
         return {a: reward[a] + team_reward[a//8] for a in reward}
 
-    def team_kill_reward(
+    def team_reward(
         self,
         prev_metric: Dict[int, Metrics],
         curr_metric: Dict[int, Metrics],
         obs: Dict[int, Dict[str, np.ndarray]],
         step: int,
-        done: Dict[int, bool]
+        done: Dict[int, bool],
+        team_weight
     ) -> Dict[int, float]:
         team_rewards = {t: 0 for t in range(8)}
-        for agent_id in curr_metric:
-            team_rewards[agent_id // 8] += float(curr_metric[agent_id]["PlayerDefeats"] - prev_metric[agent_id]["PlayerDefeats"]) / 8
         baseline = self.baseline_reward(prev_metric, curr_metric, obs, step, done)
-        return {a: baseline[a] + team_rewards[a // 8] for a in baseline}
+        for agent_id in curr_metric:
+            team_rewards[agent_id // 8] += baseline[agent_id]
+        return { a: (1-team_weight) * baseline[a] + 
+                    team_weight * team_rewards[a // 8] / 8 
+                for a in baseline }
 
     def baseline_reward(
         self,
