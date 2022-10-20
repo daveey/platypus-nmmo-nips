@@ -537,9 +537,10 @@ def checkpoint(flags, model: nn.Module, step: int):
         {
             "model_state_dict": model.state_dict(),
             "flags": vars(flags),
-            "step": step
+            "step": step,
+            "commit_sha": get_commit_sha()
         },
-        checkpointpath.joinpath(f"model_{step}.pt"),
+    checkpointpath.joinpath(f"model_{step}.pt"),
     )
 
 
@@ -718,6 +719,12 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     checkpoint(flags, learner_model, step)
     plogger.close()
 
+def get_commit_sha():
+    try:
+        commit_sha = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
+    except:
+        commit_sha = "n/a"
+    return commit_sha
 
 if __name__ == "__main__":
     torch.set_num_threads(1)
@@ -725,13 +732,8 @@ if __name__ == "__main__":
     flags.num_agents = flags.num_selfplay_team * TrainEnv.num_team_member
     if flags.wandb:
 
-        try:
-            commit_sha = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
-        except:
-            commit_sha = "n/a"
-
         config = dict(vars(flags))
-        config['commit'] = commit_sha
+        config['commit'] = get_commit_sha()
 
         wandb.init(
             id=flags.xpid, # run ID

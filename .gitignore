@@ -8,3 +8,5 @@ Makefile
 maps/
 results/
 baseline/*.png
+baseline/wandb/
+.DS_Store
