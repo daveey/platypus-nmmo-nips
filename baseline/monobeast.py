@@ -289,14 +289,14 @@ def act(
                             { "memory": torch.zeros(2, 64) })["memory"] for a in range(8)
                         ])
                     else:
-                        m = torch.zeros((8, 2, 64))
+                        m = torch.zeros((8, 2, 128))
 
                     for a in range(8):
                         next_obs[tid*8 + a]["team_memory"] = m
 
                 for aid, out in agent_output.items():
                     next_obs[aid]["memory"] = (
-                        out["memory"] if flags.agent_lstm else torch.zeros(2, 64))
+                        out["memory"] if flags.agent_lstm else torch.zeros(2, 128))
 
                 store(
                     buffers=buffers,

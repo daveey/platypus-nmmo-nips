@@ -125,25 +125,23 @@ class NMMONet(nn.Module):
         self.item_fc1 = nn.Linear(14, 32)
         self.item_fc2 = nn.Linear(25*32, 32)
 
-        self.lstm = nn.LSTMCell(64, 64)
+        self.lstm = nn.LSTMCell(128, 128)
         
         self.team_memory_net = nn.Sequential(
-            nn.Linear(8*2*64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
+            nn.Linear(8*2*128, 64),
             nn.ReLU(),
             nn.Linear(64, 64),
             nn.ReLU(),
         )
 
-        self.goal_fc1 = nn.Linear(2*29, 32)
-        self.goal_fc2 = nn.Linear(32, 32)
+        # self.goal_fc1 = nn.Linear(2*29, 32)
+        # self.goal_fc2 = nn.Linear(32, 32)
 
-        self.fc1 = nn.Linear(64 + 32 + 32 + 32 + 32 + 64 + 32, 64)
-        self.fc2 = nn.Linear(64, 64)
+        self.fc1 = nn.Linear(64 + 32 + 32 + 32 + 32 + 64, 128)
+        self.fc2 = nn.Linear(128, 128)
 
-        self.action_head = ActionHead(64)
-        self.value_head = nn.Linear(64, 1)
+        self.action_head = ActionHead(128)
+        self.value_head = nn.Linear(128, 1)
 
     def local_map_embedding(self, input_dict):
         terrain = input_dict["terrain"]
@@ -203,21 +201,23 @@ class NMMONet(nn.Module):
         self_entity_emb, other_entity_emb = self.entity_embedding(input_dict)
         items = self.item_embedding(input_dict["items"])
         market = self.item_embedding(input_dict["market"])
-        team_memory = self.team_memory_net(input_dict["team_memory"].float().view(T, B, -1))
 
-        goal = F.relu(self.goal_fc1(input_dict["goal"].float().view(T,B, -1)))
-        goal = F.relu(self.goal_fc2(goal))
+        team_memory = input_dict["team_memory"].float().view(T, B, -1)
+        team_memory = self.team_memory_net(team_memory)
+
+        # goal = F.relu(self.goal_fc1(input_dict["goal"].float().view(T,B, -1)))
+        # goal = F.relu(self.goal_fc2(goal))
 
         x = torch.cat([
             local_map_emb, self_entity_emb, other_entity_emb, 
-            items, market, team_memory, goal], dim=-1)
+            items, market, team_memory], dim=-1)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
 
-        memory = input_dict["memory"].view(T*B, 2, 64).float()
-        hx, cx = self.lstm(x.view(T*B, 64), (memory[:,0], memory[:,1]))
-        hx = hx.view(T, B, 64)
-        cx = hx.view(T, B, 64)
+        memory = input_dict["memory"].view(T*B, 2, 128).float()
+        hx, cx = self.lstm(x.view(T*B, 128), (memory[:,0], memory[:,1]))
+        hx = hx.view(T, B, 128)
+        cx = hx.view(T, B, 128)
 
         logits = self.action_head(hx)
         value = self.value_head(hx).view(T, B)

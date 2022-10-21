@@ -47,12 +47,12 @@ class FeatureParser:
         spaces.Box(low=0, high=1, shape=(170, ), dtype=np.float32),
 
         "memory":
-        spaces.Box(low=0, high=1, shape=(2, 64), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(2, 128), dtype=np.float32),
         "team_memory":
-        spaces.Box(low=0, high=1, shape=(8, 2, 64), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(8, 2, 128), dtype=np.float32),
 
-        "goal":
-        spaces.Box(low=0, high=1, shape=(2, 29), dtype=np.float32),
+        # "goal":
+        # spaces.Box(low=0, high=1, shape=(2, 29), dtype=np.float32),
     }
 
     def __init__(self) -> None:
