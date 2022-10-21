@@ -224,7 +224,7 @@ class NMMONet(nn.Module):
 
         output = {
             "value": value,
-            "memory": torch.stack([hx, cx], dim=2)
+            "memory": torch.stack([hx, cx], dim=1)
         }
 
         for key, val in logits.items():
