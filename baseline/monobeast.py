@@ -111,7 +111,8 @@ parser.add_argument("--team_memory", action="store_true",
                     help="Share memory across players.")
 parser.add_argument("--lstm_layers", default=1, type=int, metavar="B",
                     help="Number of lstm layers.")
-
+parser.add_argument("--reset_step", action="store_true",
+                    help="Inore checkpoint step.")
 # yapf: enable
 
 logging.basicConfig(
@@ -605,7 +606,8 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
         logging.info(f"load checkpoint: {flags.checkpoint_path}")
         previous_checkpoint = torch.load(flags.checkpoint_path, map_location=flags.device)
         checkpoint_state_dict = previous_checkpoint["model_state_dict"]
-        step = previous_checkpoint["step"]
+        if not flags.reset_step:
+            step = previous_checkpoint["step"]
         if flags.upgrade_model:
             model_state_dict = learner_model.state_dict()
             new_state_dict = {
