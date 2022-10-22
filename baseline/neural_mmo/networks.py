@@ -239,7 +239,9 @@ class NMMONet(nn.Module):
             lstm_state = lstm_state.permute(1, 2, 0, 3)
 
             notdone = (~input_dict["done"]).float()
-            notdone = torch.cat([notdone, torch.ones(1, B).to(device=notdone.device)])
+            if notdone.shape[0] < lstm_input.shape[0]:
+                notdone = torch.cat([notdone, torch.ones(1, B).to(device=notdone.device)])
+    
             lstm_output_list = []
             for input, nd in zip(lstm_input.unbind(), notdone.unbind()):
                 # Reset lstm state to zero whenever an episode ended.
