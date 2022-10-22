@@ -305,12 +305,11 @@ def act(
                 next_obs, reward, done, info = env.step(actions)
 
                 team_latent_obs = {
-                    t: torch.stack([
-                        agent_output.get(t * 8 + a, torch.zeros(1, 1, 256))["latent_obs"]
+                    t: torch.cat([
+                        agent_output.get(t * 8 + a, torch.zeros(1, 256))["latent_obs"]
                         for a in range(8)
                     ]) for t in range(8)
                 }
-
 
                 for a in next_obs:
                     next_obs[a]["lstm_state"] = agent_output[a]["lstm_state"]
