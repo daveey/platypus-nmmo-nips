@@ -162,7 +162,8 @@ def create_buffers(
         agent_playerdefeats=dict(size=(), dtype=torch.int32),
         team_lifespan=dict(size=(), dtype=torch.int32),
         game_over=dict(size=(), dtype=torch.bool),
-        lstm_state=dict(size=(2, max(1, flags.lstm_layers), 256), dtype=torch.float32)
+        lstm_state=dict(size=(2, max(1, flags.lstm_layers), 256), dtype=torch.float32),
+        latent_state=dict(size=(256,), dtype=torch.float32)
     ))
     buffer_specs.update(obs_specs)
     buffer_specs.update(action_specs)
@@ -267,6 +268,7 @@ def act(
         done = { a: torch.zeros(1, 1).bool() for a in obs }
         for a in obs:
             obs[a]["lstm_state"] = model.initial_state(batch_size=1)
+            obs[a]["team_latent_state"] = torch.zeros(1, 1, 8, 256)
 
         while True:
             free_indices = [free_queue.get() for _ in range(flags.num_agents)]
@@ -301,8 +303,17 @@ def act(
                 timings.time("model")
                 next_obs, reward, done, info = env.step(actions)
 
+                team_latent_states = {
+                    t: torch.stack([
+                        agent_output.get(t * 8 + a, torch.zeros(1, 1, 256))["latent_state"]
+                        for a in range(8)
+                    ]) for t in range(8)
+                }
+
+
                 for a in next_obs:
                     next_obs[a]["lstm_state"] = agent_output[a]["lstm_state"]
+                    next_obs[a]["team_latent_state"] = team_latent_states[a // 8]
 
                 timings.time("step")
 
@@ -690,7 +701,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
             time.sleep(30)
 
             if timer() - last_checkpoint_time > flags.checkpoint_interval:
-                checkpoint(flags, learner_model, step, optimizer, scheduler)
+                checkpoint(flags, learner_model, step, optimizer)
                 last_checkpoint_time = timer()
 
             if timer() - last_restart_actor_time > flags.restart_actor_interval: # yapf: disable
@@ -728,7 +739,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
         for actor in actor_processes:
             actor.join(timeout=1)
 
-    checkpoint(flags, learner_model, step)
+    checkpoint(flags, learner_model, step, optimizer)
     plogger.close()
 
 def get_commit_sha():
