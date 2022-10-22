@@ -107,7 +107,7 @@ parser.add_argument("--num_maps", default=1, type=int, metavar="B",
                     help="Number of training maps per actor.")
 parser.add_argument("--map_size", default=128, type=int, metavar="B",
                     help="Size of training map.")
-parser.add_argument("--team_memory", action="store_true",
+parser.add_argument("--team_obs", action="store_true",
                     help="Share memory across players.")
 parser.add_argument("--lstm_layers", default=1, type=int, metavar="B",
                     help="Number of lstm layers.")
@@ -164,7 +164,7 @@ def create_buffers(
         team_lifespan=dict(size=(), dtype=torch.int32),
         game_over=dict(size=(), dtype=torch.bool),
         lstm_state=dict(size=(2, max(1, flags.lstm_layers), 256), dtype=torch.float32),
-        latent_state=dict(size=(256,), dtype=torch.float32)
+        latent_obs=dict(size=(256,), dtype=torch.float32)
     ))
     buffer_specs.update(obs_specs)
     buffer_specs.update(action_specs)
@@ -269,7 +269,7 @@ def act(
         done = { a: torch.zeros(1, 1).bool() for a in obs }
         for a in obs:
             obs[a]["lstm_state"] = model.initial_state(batch_size=1)
-            obs[a]["team_latent_state"] = torch.zeros(1, 1, 8, 256)
+            obs[a]["team_latent_obs"] = torch.zeros(1, 1, 8, 256)
 
         while True:
             free_indices = [free_queue.get() for _ in range(flags.num_agents)]
@@ -304,9 +304,9 @@ def act(
                 timings.time("model")
                 next_obs, reward, done, info = env.step(actions)
 
-                team_latent_states = {
+                team_latent_obs = {
                     t: torch.stack([
-                        agent_output.get(t * 8 + a, torch.zeros(1, 1, 256))["latent_state"]
+                        agent_output.get(t * 8 + a, torch.zeros(1, 1, 256))["latent_obs"]
                         for a in range(8)
                     ]) for t in range(8)
                 }
@@ -314,7 +314,7 @@ def act(
 
                 for a in next_obs:
                     next_obs[a]["lstm_state"] = agent_output[a]["lstm_state"]
-                    next_obs[a]["team_latent_state"] = team_latent_states[a // 8]
+                    next_obs[a]["team_latent_obs"] = team_latent_obs[a // 8]
 
                 timings.time("step")
 
@@ -600,8 +600,8 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
 
     step, stats = 0, {}
 
-    actor_model = Net(flags.lstm_layers)
-    learner_model = Net(flags.lstm_layers).to(device=flags.device)
+    actor_model = Net(flags.lstm_layers, flags.team_obs)
+    learner_model = Net(flags.lstm_layers, flags.team_obs).to(device=flags.device)
     if flags.checkpoint_path is not None:
         logging.info(f"load checkpoint: {flags.checkpoint_path}")
         previous_checkpoint = torch.load(flags.checkpoint_path, map_location=flags.device)

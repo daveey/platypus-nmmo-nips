@@ -104,9 +104,10 @@ class ActionHead(nn.Module):
 #         return output
 
 class NMMONet(nn.Module):
-    def __init__(self, num_lstm_layers):
+    def __init__(self, num_lstm_layers, use_team_obs):
         super().__init__()
         self.num_lstm_layers = num_lstm_layers
+        self.use_team_obs = use_team_obs
         self.latent_size = 256
 
         self.local_map_cnn = nn.Sequential(
@@ -128,22 +129,24 @@ class NMMONet(nn.Module):
         self.item_fc1 = nn.Linear(14, 32)
         self.item_fc2 = nn.Linear(25*32, 32)
 
-        # self.team_memory_net = nn.Sequential(
-        #     nn.Linear(8*2*128, 64),
-        #     nn.ReLU(),
-        #     nn.Linear(64, 64),
-        #     nn.ReLU(),
-        # )
+        if self.use_team_obs:
+            self.team_obs = nn.Sequential(
+                nn.Linear(8*self.latent_size, self.latent_size),
+                nn.ReLU(),
+                nn.Linear(self.latent_size, self.latent_size),
+            )
 
-        self.embeddings = [
+        embeddings = [
             self.local_map_fc, 
             self.self_entity_fc2,
             self.other_entity_fc2, 
             self.item_fc2, # inventory
             self.item_fc2, # market
-            # self.team_memory_net
         ]
-        self.embedding_size = sum([e.out_features for e in self.embeddings])
+        if self.use_team_obs:
+            embeddings.append(self.team_obs[-1])
+
+        self.embedding_size = sum([e.out_features for e in embeddings])
 
         self.fc1 = nn.Linear(self.embedding_size, self.latent_size)
         self.fc2 = nn.Linear(self.latent_size, self.latent_size)
@@ -224,9 +227,14 @@ class NMMONet(nn.Module):
         # goal = F.relu(self.goal_fc1(input_dict["goal"].float().view(T,B, -1)))
         # goal = F.relu(self.goal_fc2(goal))
 
-        x = torch.cat([
-            local_map_emb, self_entity_emb, other_entity_emb, 
-            items, market], dim=-1)
+        embedings = [
+            local_map_emb, self_entity_emb, other_entity_emb, items, market]
+
+        if self.use_team_obs:
+            embedings.append(self.team_obs(
+                input_dict["team_latent_obs"].view(T, B, -1)))
+
+        x = torch.cat(embedings, dim=-1)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
 
@@ -260,7 +268,7 @@ class NMMONet(nn.Module):
         output = {
             "value": value.view(T, B),
             "lstm_state": lstm_state,
-            "latent_state": lstm_output.view(T, B, self.latent_size)
+            "latent_obs": x.view(T, B, self.latent_size)
         }
 
         for key, val in logits.items():
