@@ -104,10 +104,9 @@ class ActionHead(nn.Module):
 #         return output
 
 class NMMONet(nn.Module):
-    def __init__(self, use_lstm):
+    def __init__(self, num_lstm_layers):
         super().__init__()
-        self.use_lstm = use_lstm
-
+        self.num_lstm_layers = num_lstm_layers
         self.latent_size = 256
 
         self.local_map_cnn = nn.Sequential(
@@ -149,13 +148,16 @@ class NMMONet(nn.Module):
         self.fc1 = nn.Linear(self.embedding_size, self.latent_size)
         self.fc2 = nn.Linear(self.latent_size, self.latent_size)
 
-        self.lstm = nn.LSTM(self.latent_size, self.latent_size, num_layers=1)
+        if self.num_lstm_layers > 0:
+            self.lstm = nn.LSTM(self.latent_size, self.latent_size, num_layers=self.num_lstm_layers)
         
         self.action_head = ActionHead(self.latent_size)
         self.value_head = nn.Linear(self.latent_size, 1)
 
     def initial_state(self, batch_size=1):
-        return torch.zeros(batch_size, 2, self.lstm.num_layers, self.lstm.hidden_size)
+        if self.num_lstm_layers > 0:
+            return torch.zeros(batch_size, 2, self.lstm.num_layers, self.lstm.hidden_size)
+        return torch.zeros(batch_size, 2, 1, 256)
 
     def local_map_embedding(self, input_dict):
         terrain = input_dict["terrain"]
@@ -228,12 +230,14 @@ class NMMONet(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
 
-        # [B, 2, NL, S] -> [2, NL, B, S]
-        lstm_state = input_dict["lstm_state"].permute(1, 2, 0, 3)
+
         lstm_input = x.view(T, B, -1)
         lstm_output = lstm_input
-        
-        if self.use_lstm:
+        lstm_state = input_dict["lstm_state"]
+        if self.num_lstm_layers > 0:
+            # [B, 2, NL, S] -> [2, NL, B, S]
+            lstm_state = lstm_state.permute(1, 2, 0, 3)
+
             notdone = (~input_dict["done"]).float()
             notdone = torch.cat([notdone, torch.ones(1, B)])
             lstm_output_list = []
@@ -246,13 +250,14 @@ class NMMONet(nn.Module):
                 output, lstm_state = self.lstm(input.unsqueeze(0), lstm_state)
                 lstm_output_list.append(output)
             lstm_output = torch.flatten(torch.cat(lstm_output_list), 0, 1)
+            lstm_state = torch.stack(lstm_state, 0).permute(2, 0, 1, 3)
 
         logits = self.action_head(lstm_output)
         value = self.value_head(lstm_output)
 
         output = {
             "value": value.view(T, B),
-            "lstm_state": torch.stack(lstm_state, 0).permute(2, 0, 1, 3)
+            "lstm_state": lstm_state
         }
 
         for key, val in logits.items():

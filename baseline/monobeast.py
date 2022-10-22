@@ -109,8 +109,9 @@ parser.add_argument("--map_size", default=128, type=int, metavar="B",
                     help="Size of training map.")
 parser.add_argument("--team_memory", action="store_true",
                     help="Share memory across players.")
-parser.add_argument("--agent_lstm", action="store_true",
-                    help="Use an lstm for each agent.")
+parser.add_argument("--lstm_layers", default=1, type=int, metavar="B",
+                    help="Number of lstm layers.")
+
 # yapf: enable
 
 logging.basicConfig(
@@ -161,7 +162,7 @@ def create_buffers(
         agent_playerdefeats=dict(size=(), dtype=torch.int32),
         team_lifespan=dict(size=(), dtype=torch.int32),
         game_over=dict(size=(), dtype=torch.bool),
-        lstm_state=dict(size=(2, 5, 256), dtype=torch.float32)
+        lstm_state=dict(size=(2, max(1, flags.lstm_layers), 256), dtype=torch.float32)
     ))
     buffer_specs.update(obs_specs)
     buffer_specs.update(action_specs)
@@ -587,8 +588,8 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
 
     step, stats = 0, {}
 
-    actor_model = Net(flags.agent_lstm)
-    learner_model = Net(flags.agent_lstm).to(device=flags.device)
+    actor_model = Net(flags.lstm_layers)
+    learner_model = Net(flags.lstm_layers).to(device=flags.device)
     if flags.checkpoint_path is not None:
         logging.info(f"load checkpoint: {flags.checkpoint_path}")
         previous_checkpoint = torch.load(flags.checkpoint_path, map_location=flags.device)
