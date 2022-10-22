@@ -248,7 +248,7 @@ class NMMONet(nn.Module):
 
             notdone = (~input_dict["done"]).float()
             if notdone.shape[0] < lstm_input.shape[0]:
-                notdone = torch.cat([notdone, torch.ones(1, B).to(device=notdone.device)])
+                notdone = torch.cat([notdone, torch.ones(1, B).to(device=notdone.device)]).contiguous()
     
             lstm_output_list = []
             for input, nd in zip(lstm_input.unbind(), notdone.unbind()):
