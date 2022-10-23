@@ -18,7 +18,7 @@ class MonobeastBaseline(Team):
                  env_config: config.Config,
                  checkpoint_path=None):
         super().__init__(team_id, env_config)
-        self.model: nn.Module = NMMONet()
+        self.model: nn.Module = NMMONet(1)
         env_config.NMAP = 1
         if checkpoint_path is not None:
             print(f"load checkpoint: {checkpoint_path}")
@@ -33,11 +33,11 @@ class MonobeastBaseline(Team):
         self.memory = {}
 
     def log_self(self, features):
-        se = features["self_entity"][0][0][0][0]
-        print(f"me: {se[10]}hp {se[11]:.2f}f {se[12]:.2f}w {se[7]:.2f}d ${se[9]:.2f} {se[1]:.2f}lvl")
+        se = features["self_entity"][0][0][0]
+        print(f"me: {100*se[11]:.2f}hp {100*se[12]:.2f}f {100*se[13]:.2f}w {se[9]:.2f}d ${se[10]:.2f} {100*se[1]:.2f}/ {100*se[2]:.2f}lvl")
 
     def log_items(self, feature):
-        for idx, item in enumerate(feature["items"][0][0][0][:-1]):
+        for idx, item in enumerate(feature["items"][0][0][:-1]):
             if item[2] > 0:
                 equiped = "e" if (item[13] > 0) else ""
                 trade = "t" if (item[3] > 0) else ""
@@ -55,13 +55,11 @@ class MonobeastBaseline(Team):
         feature = self.feature_parser.parse(observations, self.step)
         feature = tree.map_structure(
             lambda x: torch.from_numpy(x).view(1, 1, *x.shape), feature)
-        for a, af in feature.items():
-            af["memory"] = self.memory.get(a, torch.zeros(2, 64))
-            af["team_memory"] = torch.stack([self.memory.get(a // 8 + ta, torch.zeros(2, 64)) for ta in range(8)])
-            af["goal"] = torch.rand((2,29))
-            # af["goal"][:,0:2] = 1
-            
-        feature_batch, ids = batch(feature, self.feature_parser.spec.keys())
+        
+        for a in feature:
+            feature[a]["lstm_state"] = self.memory.get(a, self.model.initial_state())
+            feature[a]["done"] = torch.zeros(1,1).bool()
+        feature_batch, ids = batch(feature, list(self.feature_parser.spec.keys()) + ["lstm_state", "done"])
         output = self.model(feature_batch, training=False)
         output = unbatch(output, ids)
 
@@ -81,7 +79,7 @@ class MonobeastBaseline(Team):
                 "attack_target": out["attack_target"].item(),
                 "attack_style": out["attack_style"].item()
             }
-            self.memory[i] = out["memory"][0]
+            self.memory[i] = out["lstm_state"]
 
         # print("actions", actions[0])
         actions = TrainEnv.transform_action({0: actions}, {0: observations},

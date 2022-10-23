@@ -83,7 +83,7 @@ class RewardParser:
         done: Dict[int, bool]
     ) -> Dict[int, float]:
 
-        if self.phase == "baseline" or self.phase == "specialize":
+        if self.phase == "baseline":
             return self.baseline_reward(prev_metric, curr_metric, obs, step, done)
 
         if self.phase.startswith("team-"):
@@ -143,7 +143,7 @@ class RewardParser:
         done: Dict[int, bool]
     ) -> Dict[int, float]:
         reward = {}
-        food, water = self.extract_info_from_obs(obs)
+        food, water, friends, enemies = self.extract_info_from_obs(obs)
         for agent_id in curr_metric:
             curr, prev = curr_metric[agent_id], prev_metric[agent_id]
             r = 0.0
@@ -156,8 +156,6 @@ class RewardParser:
             # Profession reward
             for p in PROFESSION:
                 pr = (curr[p] - prev[p]) * 0.1 * curr[p]
-                if self.phase == "specialize" and p == PROFESSION[agent_id % len(PROFESSION)]:
-                    pr *= 3
                 r += pr
 
             # Combat reward
@@ -182,7 +180,12 @@ class RewardParser:
             if agent_id in done and done[agent_id]:
                 r -= 5.0
 
-            # Team reward
+            if friends >= 2:
+                r += 0.1
+            
+            if enemies > friends:
+                r -= 0.2
+                
             reward[agent_id] = r
 
         return reward
@@ -190,4 +193,6 @@ class RewardParser:
     def extract_info_from_obs(self, obs: Dict[int, Dict[str, np.ndarray]]):
         food = {i: obs[i]["self_entity"][0, 11] for i in obs}
         water = {i: obs[i]["self_entity"][0, 12] for i in obs}
-        return food, water
+        friends = {i: sum(obs[i]["entity_population"].flatten() == 1) for i in obs}
+        enemies = {i: sum(obs[i]["entity_population"].flatten() == 2) for i in obs}
+        return food, water, friends, enemies

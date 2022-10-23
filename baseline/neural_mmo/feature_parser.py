@@ -183,17 +183,17 @@ class FeatureParser:
                         float(e[2] == 0),  # attacked 0
                         e[3] / 10.0,  # level 1
                         e[4] / 10.0,  # item_level 2
-                        e[5] / 170.0,  # communication token
-                        (r - 16) / 128.0,  # r 3
-                        (c - 16) / 128.0,  # c 4
-                        (r - 16 - cent) / 128.0,  # delta_r 5
-                        (c - 16 - cent) / 128.0,  # delta_c 6
-                        e[9] / 100.0,  # damage 7
-                        e[10] / 1024.0,  # alive_time 8
-                        e[12] / 100.0,  # gold 9
-                        e[13] / 100.0,  # health 10
-                        e[14] / 100.0,  # food 11
-                        e[15] / 100.0,  # water 12
+                        e[5] / 170.0,  # 3 communication token
+                        (r - 16) / 128.0,  # r 4
+                        (c - 16) / 128.0,  # c 5
+                        (r - 16 - cent) / 128.0,  # delta_r 6
+                        (c - 16 - cent) / 128.0,  # delta_c 7
+                        e[9] / 100.0,  # damage 8
+                        e[10] / 1024.0,  # alive_time 9
+                        e[12] / 100.0,  # gold 10
+                        e[13] / 100.0,  # health 11
+                        e[14] / 100.0,  # food 12
+                        e[15] / 100.0,  # water 13
                         e[16] / 10.0,  # melee
                         e[17] / 10.0,  # range
                         e[18] / 10.0,  # mage
