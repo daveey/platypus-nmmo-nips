@@ -268,7 +268,7 @@ class NMMONet(nn.Module):
         output = {
             "value": value.view(T, B),
             "lstm_state": lstm_state,
-            "latent_obs": x.view(T, B, self.latent_size)
+            "latent_obs": x.view(T, B, self.latent_size).detach()
         }
 
         for key, val in logits.items():
