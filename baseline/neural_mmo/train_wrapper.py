@@ -52,12 +52,12 @@ class TrainEnv(Wrapper):
         raw_obs = super().reset()
         obs = self._flatten(self._get(raw_obs))
         obs = self.feature_parser.parse(obs, self._step)
-        for a in obs.keys():
-            obs[a]["memory"] = np.zeros([2, 64])
-            obs[a]["team_memory"] = np.zeros([8, 2, 64])
-            obs[a]["goal"] = np.stack(
-                [self.reward_parser.goal_weights, 
-                self.reward_parser.team_goal_weights])
+        # for a in obs.keys():
+            # obs[a]["memory"] = np.zeros([2, 128])
+            # obs[a]["team_memory"] = np.zeros([8, 2, 128])
+            # obs[a]["goal"] = np.stack(
+            #     [self.reward_parser.goal_weights, 
+            #     self.reward_parser.team_goal_weights])
 
         metrics = self._flatten(self._get(self.metrices_by_team()))
 
@@ -87,10 +87,10 @@ class TrainEnv(Wrapper):
         metrics = self._flatten(self._get(self.metrices_by_team()))
         reward = self.reward_parser.parse(self._prev_metrics, metrics, obs,
                                           self._step, done)
-        for a in obs.keys():
-            obs[a]["goal"] = np.stack([
-                self.reward_parser.goal_weights, 
-                self.reward_parser.team_goal_weights])
+        # for a in obs.keys():
+        #     obs[a]["goal"] = np.stack([
+        #         self.reward_parser.goal_weights, 
+        #         self.reward_parser.team_goal_weights])
 
         self._prev_raw_obs = raw_obs
         self._prev_metrics = metrics

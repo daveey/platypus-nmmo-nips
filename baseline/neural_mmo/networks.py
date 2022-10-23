@@ -1,5 +1,5 @@
 from tkinter import HIDDEN
-from typing import Dict
+from typing import Dict, Tuple
 
 import torch
 import torch.nn as nn
@@ -104,8 +104,11 @@ class ActionHead(nn.Module):
 #         return output
 
 class NMMONet(nn.Module):
-    def __init__(self):
+    def __init__(self, num_lstm_layers):
         super().__init__()
+        self.num_lstm_layers = num_lstm_layers
+        self.latent_size = 256
+
         self.local_map_cnn = nn.Sequential(
             nn.Conv2d(24, 32, 3, 2, 1),
             nn.ReLU(),
@@ -125,25 +128,36 @@ class NMMONet(nn.Module):
         self.item_fc1 = nn.Linear(14, 32)
         self.item_fc2 = nn.Linear(25*32, 32)
 
-        self.lstm = nn.LSTMCell(64, 64)
+        # self.team_memory_net = nn.Sequential(
+        #     nn.Linear(8*2*128, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 64),
+        #     nn.ReLU(),
+        # )
+
+        self.embeddings = [
+            self.local_map_fc, 
+            self.self_entity_fc2,
+            self.other_entity_fc2, 
+            self.item_fc2, # inventory
+            self.item_fc2, # market
+            # self.team_memory_net
+        ]
+        self.embedding_size = sum([e.out_features for e in self.embeddings])
+
+        self.fc1 = nn.Linear(self.embedding_size, self.latent_size)
+        self.fc2 = nn.Linear(self.latent_size, self.latent_size)
+
+        if self.num_lstm_layers > 0:
+            self.lstm = nn.LSTM(self.latent_size, self.latent_size, num_layers=self.num_lstm_layers)
         
-        self.team_memory_net = nn.Sequential(
-            nn.Linear(8*2*64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-        )
+        self.action_head = ActionHead(self.latent_size)
+        self.value_head = nn.Linear(self.latent_size, 1)
 
-        self.goal_fc1 = nn.Linear(2*29, 32)
-        self.goal_fc2 = nn.Linear(32, 32)
-
-        self.fc1 = nn.Linear(64 + 32 + 32 + 32 + 32 + 64 + 32, 64)
-        self.fc2 = nn.Linear(64, 64)
-
-        self.action_head = ActionHead(64)
-        self.value_head = nn.Linear(64, 1)
+    def initial_state(self, batch_size=1):
+        if self.num_lstm_layers > 0:
+            return torch.zeros(batch_size, 2, self.lstm.num_layers, self.lstm.hidden_size)
+        return torch.zeros(batch_size, 2, 1, 256)
 
     def local_map_embedding(self, input_dict):
         terrain = input_dict["terrain"]
@@ -203,28 +217,50 @@ class NMMONet(nn.Module):
         self_entity_emb, other_entity_emb = self.entity_embedding(input_dict)
         items = self.item_embedding(input_dict["items"])
         market = self.item_embedding(input_dict["market"])
-        team_memory = self.team_memory_net(input_dict["team_memory"].float().view(T, B, -1))
 
-        goal = F.relu(self.goal_fc1(input_dict["goal"].float().view(T,B, -1)))
-        goal = F.relu(self.goal_fc2(goal))
+        # team_memory = input_dict["team_memory"].float().view(T, B, -1)
+        # team_memory = self.team_memory_net(team_memory)
+
+        # goal = F.relu(self.goal_fc1(input_dict["goal"].float().view(T,B, -1)))
+        # goal = F.relu(self.goal_fc2(goal))
 
         x = torch.cat([
             local_map_emb, self_entity_emb, other_entity_emb, 
-            items, market, team_memory, goal], dim=-1)
+            items, market], dim=-1)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
 
-        memory = input_dict["memory"].view(T*B, 2, 64).float()
-        hx, cx = self.lstm(x.view(T*B, 64), (memory[:,0], memory[:,1]))
-        hx = hx.view(T, B, 64)
-        cx = hx.view(T, B, 64)
 
-        logits = self.action_head(hx)
-        value = self.value_head(hx).view(T, B)
+        lstm_input = x.view(T, B, -1)
+        lstm_output = lstm_input
+        lstm_state = input_dict["lstm_state"]
+        if self.num_lstm_layers > 0:
+            # [B, 2, NL, S] -> [2, NL, B, S]
+            lstm_state = lstm_state.permute(1, 2, 0, 3)
+
+            notdone = (~input_dict["done"]).float()
+            if notdone.shape[0] < lstm_input.shape[0]:
+                notdone = torch.cat([notdone, torch.ones(1, B).to(device=notdone.device)])
+    
+            lstm_output_list = []
+            for input, nd in zip(lstm_input.unbind(), notdone.unbind()):
+                # Reset lstm state to zero whenever an episode ended.
+                # Make `done` broadcastable with (num_layers, B, hidden_size)
+                # states:
+                nd = nd.view(1, -1, 1)
+                lstm_state = tuple((nd * s).contiguous() for s in lstm_state)
+                output, lstm_state = self.lstm(input.unsqueeze(0), lstm_state)
+                lstm_output_list.append(output)
+            lstm_output = torch.flatten(torch.cat(lstm_output_list), 0, 1)
+            lstm_state = torch.stack(lstm_state, 0).permute(2, 0, 1, 3)
+
+        logits = self.action_head(lstm_output)
+        value = self.value_head(lstm_output)
 
         output = {
-            "value": value,
-            "memory": torch.stack([hx, cx], dim=2)
+            "value": value.view(T, B),
+            "lstm_state": lstm_state,
+            "latent_state": lstm_output.view(T, B, self.latent_size)
         }
 
         for key, val in logits.items():
@@ -233,7 +269,8 @@ class NMMONet(nn.Module):
                 action = dist.sample()
                 logprob = dist.log_prob(action)
                 output[key] = action
-                output[f"{key}_logp"] = logprob
+                output[f"{key}_logp"] = logprob.view(T, B)
             else:
-                output[f"{key}_logits"] = val
+                output[f"{key}_logits"] = val.view(T, B, -1)
+
         return output

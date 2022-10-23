@@ -2,6 +2,7 @@ import argparse
 from email.policy import strict
 import logging
 import pprint
+from sched import scheduler
 import subprocess
 import threading
 import time
@@ -108,8 +109,10 @@ parser.add_argument("--map_size", default=128, type=int, metavar="B",
                     help="Size of training map.")
 parser.add_argument("--team_memory", action="store_true",
                     help="Share memory across players.")
-parser.add_argument("--agent_lstm", action="store_true",
-                    help="Use an lstm for each agent.")
+parser.add_argument("--lstm_layers", default=1, type=int, metavar="B",
+                    help="Number of lstm layers.")
+parser.add_argument("--reset_step", action="store_true",
+                    help="Inore checkpoint step.")
 # yapf: enable
 
 logging.basicConfig(
@@ -160,6 +163,8 @@ def create_buffers(
         agent_playerdefeats=dict(size=(), dtype=torch.int32),
         team_lifespan=dict(size=(), dtype=torch.int32),
         game_over=dict(size=(), dtype=torch.bool),
+        lstm_state=dict(size=(2, max(1, flags.lstm_layers), 256), dtype=torch.float32),
+        latent_state=dict(size=(256,), dtype=torch.float32)
     ))
     buffer_specs.update(obs_specs)
     buffer_specs.update(action_specs)
@@ -222,7 +227,10 @@ def batch(
             if key in filter_keys:
                 obs_batch[key].append(val)
     for key, val in obs_batch.items():
-        obs_batch[key] = torch.cat(val, dim=1)
+        if key == "lstm_state":
+            obs_batch[key] = torch.cat(val, dim=0)
+        else:
+            obs_batch[key] = torch.cat(val, dim=1)
 
     return obs_batch, agent_ids
 
@@ -232,8 +240,10 @@ def unbatch(agent_output: Dict[str, Tensor], agent_ids: List[int]):
     unbatched_agent_output = {key: {} for key in agent_ids}
     for key, val in agent_output.items():
         for i, agent_id in enumerate(agent_ids):
-            unbatched_agent_output[agent_id][
-                key] = val[:, i]  # shape: [1, B, ...]
+            if key == "lstm_state":
+                unbatched_agent_output[agent_id][key] = val[i].unsqueeze(0)  # shape: [B, ...]
+            else:
+                unbatched_agent_output[agent_id][key] = val[:, i]  # shape: [1, B, ...]
     return unbatched_agent_output
 
 
@@ -254,7 +264,13 @@ def act(
         env = Environment(gym_env)
         observation_space: spaces.Dict = gym_env.observation_space
         action_space: spaces.Dict = gym_env.action_space
+
         obs = env.initial()
+        done = { a: torch.zeros(1, 1).bool() for a in obs }
+        for a in obs:
+            obs[a]["lstm_state"] = model.initial_state(batch_size=1)
+            obs[a]["team_latent_state"] = torch.zeros(1, 1, 8, 256)
+
         while True:
             free_indices = [free_queue.get() for _ in range(flags.num_agents)]
             if None in free_indices:
@@ -262,13 +278,20 @@ def act(
             # rollout.
             for t in range(flags.unroll_length):
                 timings.reset()
+
                 # batch
+                for a in obs:
+                    obs[a]["done"] = done[a]
+
                 obs_batch, agent_ids = batch(
-                    obs, filter_keys=observation_space.keys())
+                    obs, filter_keys=list(observation_space.keys()) + ["done", "lstm_state"])
+
                 # forward inference
                 agent_output_batch = model(obs_batch)
+
                 # unbatch
                 agent_output = unbatch(agent_output_batch, agent_ids)
+
                 # extract actions
                 actions = {
                     agent_id: {
@@ -280,23 +303,20 @@ def act(
 
                 timings.time("model")
                 next_obs, reward, done, info = env.step(actions)
+
+                team_latent_states = {
+                    t: torch.stack([
+                        agent_output.get(t * 8 + a, torch.zeros(1, 1, 256))["latent_state"]
+                        for a in range(8)
+                    ]) for t in range(8)
+                }
+
+
+                for a in next_obs:
+                    next_obs[a]["lstm_state"] = agent_output[a]["lstm_state"]
+                    next_obs[a]["team_latent_state"] = team_latent_states[a // 8]
+
                 timings.time("step")
-
-                for tid in range(8):
-                    if flags.team_memory:
-                        m = torch.stack([
-                            agent_output.get(tid * 8 + a, 
-                            { "memory": torch.zeros(2, 64) })["memory"] for a in range(8)
-                        ])
-                    else:
-                        m = torch.zeros((8, 2, 64))
-
-                    for a in range(8):
-                        next_obs[tid*8 + a]["team_memory"] = m
-
-                for aid, out in agent_output.items():
-                    next_obs[aid]["memory"] = (
-                        out["memory"] if flags.agent_lstm else torch.zeros(2, 64))
 
                 store(
                     buffers=buffers,
@@ -375,6 +395,7 @@ def learn(
     optimizer: torch.optim.Optimizer,
 ) -> Dict[str, float]:
     """Performs a learning (optimization) step."""
+    batch["lstm_state"] = batch["lstm_state"][0]
     learner_outputs = learner_model(batch, training=True)
     # Take final value function slice for bootstrapping.
     bootstrap_value = learner_outputs["value"][-1]
@@ -446,6 +467,7 @@ def learn(
         grad_norm = nn.utils.clip_grad_norm_(learner_model.parameters(),
                                              flags.grad_norm_clipping)
         optimizer.step()
+
     actor_model.load_state_dict(learner_model.state_dict())
     episode_end = (batch["done"] == True) & (batch["mask"] == True)
     episode_returns = batch["episode_return"][episode_end]
@@ -528,7 +550,7 @@ def start_process(
     return actor_processes
 
 
-def checkpoint(flags, model: nn.Module, step: int):
+def checkpoint(flags, model: nn.Module, step: int, optimizer):
     if flags.disable_checkpoint:
         return
     checkpointpath = Path(flags.savedir).joinpath(flags.xpid)
@@ -538,9 +560,10 @@ def checkpoint(flags, model: nn.Module, step: int):
             "model_state_dict": model.state_dict(),
             "flags": vars(flags),
             "step": step,
-            "commit_sha": get_commit_sha()
+            "commit_sha": get_commit_sha(),
+            "optimizer_state_dict": optimizer.state_dict(),
         },
-    checkpointpath.joinpath(f"model_{step}.pt"),
+        checkpointpath.joinpath(f"model_{step}.pt"),
     )
 
 
@@ -577,13 +600,14 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
 
     step, stats = 0, {}
 
-    actor_model = Net()
-    learner_model = Net().to(device=flags.device)
+    actor_model = Net(flags.lstm_layers)
+    learner_model = Net(flags.lstm_layers).to(device=flags.device)
     if flags.checkpoint_path is not None:
         logging.info(f"load checkpoint: {flags.checkpoint_path}")
         previous_checkpoint = torch.load(flags.checkpoint_path, map_location=flags.device)
         checkpoint_state_dict = previous_checkpoint["model_state_dict"]
-        step = previous_checkpoint["step"]
+        if not flags.reset_step:
+            step = previous_checkpoint["step"]
         if flags.upgrade_model:
             model_state_dict = learner_model.state_dict()
             new_state_dict = {
@@ -655,6 +679,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
             )
             if torch.sum(batch["mask"]) == 0:
                 continue
+
             stats = learn(flags, actor_model, learner_model, batch, optimizer)
             timings.time("learn")
             to_log = dict(step=step)
@@ -678,7 +703,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
             time.sleep(30)
 
             if timer() - last_checkpoint_time > flags.checkpoint_interval:
-                checkpoint(flags, learner_model, step)
+                checkpoint(flags, learner_model, step, optimizer)
                 last_checkpoint_time = timer()
 
             if timer() - last_restart_actor_time > flags.restart_actor_interval: # yapf: disable
@@ -716,7 +741,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
         for actor in actor_processes:
             actor.join(timeout=1)
 
-    checkpoint(flags, learner_model, step)
+    checkpoint(flags, learner_model, step, optimizer)
     plogger.close()
 
 def get_commit_sha():
