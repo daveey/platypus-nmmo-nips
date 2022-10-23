@@ -176,16 +176,17 @@ class RewardParser:
             if agent_id in water and water[agent_id] == 0:
                 r -= 0.1
 
+            if friends[agent_id] >= 2:
+                r += 0.1
+            
+            if enemies[agent_id] > friends[agent_id]:
+                r -= 0.2
+                
+
             # Death penalty
             if agent_id in done and done[agent_id]:
                 r -= 5.0
 
-            if friends >= 2:
-                r += 0.1
-            
-            if enemies > friends:
-                r -= 0.2
-                
             reward[agent_id] = r
 
         return reward
@@ -193,6 +194,6 @@ class RewardParser:
     def extract_info_from_obs(self, obs: Dict[int, Dict[str, np.ndarray]]):
         food = {i: obs[i]["self_entity"][0, 11] for i in obs}
         water = {i: obs[i]["self_entity"][0, 12] for i in obs}
-        friends = {i: sum(obs[i]["entity_population"].flatten() == 1) for i in obs}
+        friends = {i: sum(obs[i]["entity_population"].flatten() == 1) - 1 for i in obs}
         enemies = {i: sum(obs[i]["entity_population"].flatten() == 2) for i in obs}
         return food, water, friends, enemies
