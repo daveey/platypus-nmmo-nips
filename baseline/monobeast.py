@@ -304,18 +304,20 @@ def act(
                 timings.time("model")
                 next_obs, reward, done, info = env.step(actions)
 
-                team_latent_obs = {t: [] for t in range(flags.num_selfplay_team)}
-                for tid in range(flags.num_selfplay_team):
-                    for pid in range(TrainEnv.num_team_member):
-                        agent_id = tid * TrainEnv.num_team_member + pid
-                        if agent_id in done and not done[agent_id]:
-                            team_latent_obs[tid].append(agent_output[agent_id]["latent_obs"])
-                        else:
-                            team_latent_obs[tid].append(torch.zeros(1, 256))
+                if flags.team_obs:
+                    team_latent_obs = {t: [] for t in range(flags.num_selfplay_team)}
+                    for tid in range(flags.num_selfplay_team):
+                        for pid in range(TrainEnv.num_team_member):
+                            agent_id = tid * TrainEnv.num_team_member + pid
+                            if agent_id in done and not done[agent_id]:
+                                team_latent_obs[tid].append(agent_output[agent_id]["latent_obs"])
+                            else:
+                                team_latent_obs[tid].append(torch.zeros(1, 256))
 
                 for a in next_obs:
                     next_obs[a]["lstm_state"] = agent_output[a]["lstm_state"]
-                    next_obs[a]["team_latent_obs"] = torch.cat(team_latent_obs[a // 8])
+                    if flags.team_obs:
+                        next_obs[a]["team_latent_obs"] = torch.cat(team_latent_obs[a // 8])
 
                 timings.time("step")
 
