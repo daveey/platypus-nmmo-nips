@@ -213,13 +213,10 @@ class NMMONet(nn.Module):
         training: bool = False,
     ) -> Dict[str, torch.Tensor]:
 
-        learning = False
-        if (input_dict["terrain"].shape[0]>1):
-            learning = True
-
         T, B, *_ = input_dict["terrain"].shape
         local_map_emb = self.local_map_embedding(input_dict)
         self_entity_emb, other_entity_emb = self.entity_embedding(input_dict)
+
         items = self.item_embedding(input_dict["items"])
         market = self.item_embedding(input_dict["market"])
 

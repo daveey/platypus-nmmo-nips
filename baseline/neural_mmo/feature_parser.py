@@ -64,6 +64,33 @@ class FeatureParser:
             else:
                 self._dummy_features[key] = np.zeros(shape=val.shape, dtype=val.dtype) 
 
+    # def parse_agent(
+    #     self,
+    #     observations: Dict[str, ndarray]
+    # ) -> Dict[str, ndarray]:
+    #     step = np.array([observations["step"]/1024],dtype=np.float32)
+    #     terrain, death_fog_damage, population, reachable, va_move = self.parse_local_map(
+    #         observations, step)
+    #     entity, va_target = self.parse_entity(observations)
+    #     self_entity = entity[:1, :]
+    #     other_entity = entity[1:, :]
+    #     items = self.parse_items(observations)
+    #     market = self.parse_market(observations)
+    #     ret = {
+    #         "step": step,
+    #         "terrain": terrain,
+    #         "death_fog_damage": death_fog_damage,
+    #         "reachable": reachable,
+    #         "entity_population": population,
+    #         "self_entity": self_entity,
+    #         "other_entity": other_entity,
+    #         "va_move": va_move,
+    #         "va_attack_target": va_target,
+    #         "items": items[0],
+    #         "market": market[0],
+    #     }
+    #     return ret
+
     def parse(
         self,
         observations: Dict[int, Dict[str, ndarray]],
