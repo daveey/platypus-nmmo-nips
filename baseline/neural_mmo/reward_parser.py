@@ -59,20 +59,13 @@ class RewardParser:
         self.phase = phase
         self.best_ever_equip_level = defaultdict(
             lambda: defaultdict(lambda: 0))
-        self.goal_weights = np.zeros(len(GOALS))
-        self.team_goal_weights = np.zeros(len(GOALS))
+        self.team_weight = float(self.phase.split("-")[1]) / 100
+        self.kill_weight = float(self.phase.split("-")[2]) / 100
+        print(f"reward settings: team: {self.team_weight:.2f} kill: {self.kill_weight:.2f}")
         self.reset()
 
     def reset(self):
         self.best_ever_equip_level.clear()
-        if self.phase == "randomized":
-            self.goal_weights = np.random.rand(len(GOALS))
-            self.team_goal_weights = np.random.rand(len(GOALS))
-        if self.phase.startswith("sparse"):
-            self.goal_weights = np.zeros(len(GOALS))
-            for _ in range(int(self.phase.split("-")[1])):
-                self.goal_weights[np.random.randint(0, len(GOALS))] = 1.0
-                self.team_goal_weights = self.goal_weights
 
     def parse(
         self,
@@ -83,43 +76,9 @@ class RewardParser:
         done: Dict[int, bool]
     ) -> Dict[int, float]:
 
-        if self.phase == "baseline":
-            return self.baseline_reward(prev_metric, curr_metric, obs, step, done)
-
-        if self.phase.startswith("team-"):
-            team_weight = float(self.phase.split("-")[1]) / 100
-            return self.team_reward(prev_metric, curr_metric, obs, step, done, team_weight)
-
-        if self.phase.startswith("teamkill-"):
-            team_weight = float(self.phase.split("-")[1]) / 100
-            return self.team_reward(prev_metric, curr_metric, obs, step, done, team_weight, )
-
-        if self.phase.startswith("sparse") or self.phase.startswith("randomized"):
-            return self.weighted_reward(prev_metric, curr_metric, obs, step, done)
-
+        return self.team_reward(prev_metric, curr_metric, obs, step, done)
 
         assert False, "invalid --reward_setting"
-
-    def weighted_reward(
-        self,
-        prev_metric: Dict[int, Metrics],
-        curr_metric: Dict[int, Metrics],
-        obs: Dict[int, Dict[str, np.ndarray]],
-        step: int,
-        done: Dict[int, bool]
-    ) -> Dict[int, float]:
-        reward = {}
-        team_reward = {t: 0 for t in range(8)}
-        food, water = self.extract_info_from_obs(obs)
-
-        for agent_id in curr_metric:
-            curr, prev = curr_metric[agent_id], prev_metric[agent_id]
-            deltas = np.array([(curr[k] - prev[k]) / GOALS[k] for k in GOALS])
-
-            reward[agent_id] = sum(deltas * self.goal_weights)
-            team_reward[agent_id // 8] = sum(deltas * self.team_goal_weights) / 8
-
-        return {a: reward[a] + team_reward[a//8] for a in reward}
 
     def team_reward(
         self,
@@ -127,15 +86,14 @@ class RewardParser:
         curr_metric: Dict[int, Metrics],
         obs: Dict[int, Dict[str, np.ndarray]],
         step: int,
-        done: Dict[int, bool],
-        team_weight
+        done: Dict[int, bool]
     ) -> Dict[int, float]:
         team_rewards = {t: 0 for t in range(8)}
         baseline = self.baseline_reward(prev_metric, curr_metric, obs, step, done)
         for agent_id in curr_metric:
             team_rewards[agent_id // 8] += baseline[agent_id]
-        return { a: (1-team_weight) * baseline[a] + 
-                    team_weight * team_rewards[a // 8] / 8 
+        return { a: (1-self.team_weight) * baseline[a] + 
+                    self.team_weight * team_rewards[a // 8] / 8 
                 for a in baseline }
 
     def baseline_reward(
@@ -144,7 +102,7 @@ class RewardParser:
         curr_metric: Dict[int, Metrics],
         obs: Dict[int, Dict[str, np.ndarray]],
         step: int,
-        done: Dict[int, bool]
+        done: Dict[int, bool],
     ) -> Dict[int, float]:
         reward = {}
         food, water, friends, enemies = self.extract_info_from_obs(obs)
@@ -155,7 +113,7 @@ class RewardParser:
             if curr["TimeAlive"] == 1024:
                 r += 10.0
             # Defeats reward
-            r += (curr["PlayerDefeats"] - prev["PlayerDefeats"]) * 0.5
+            r += (curr["PlayerDefeats"] - prev["PlayerDefeats"]) * self.kill_weight
 
             # Profession reward
             for p in PROFESSION:
