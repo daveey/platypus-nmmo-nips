@@ -153,7 +153,7 @@ def create_buffers(
 
     buffer_specs.update(dict(
         reward=dict(size=(), dtype=torch.float32),
-        done=dict(size=(), dtype=torch.bool),
+        done=dict(size=(), extra=True, dtype=torch.bool),
         mask=dict(size=(), dtype=torch.bool),
         episode_return=dict(size=(), dtype=torch.float32),
         episode_step=dict(size=(), dtype=torch.int32),
@@ -164,7 +164,7 @@ def create_buffers(
         team_lifespan=dict(size=(), dtype=torch.int32),
         game_over=dict(size=(), dtype=torch.bool),
         lstm_state=dict(size=(2, max(1, flags.lstm_layers), 256), dtype=torch.float32),
-        latent_state=dict(size=(256,), dtype=torch.float32)
+        # latent_state=dict(size=(256,), dtype=torch.float32)
     ))
     buffer_specs.update(obs_specs)
     buffer_specs.update(action_specs)
@@ -269,7 +269,6 @@ def act(
         done = { a: torch.zeros(1, 1).bool() for a in obs }
         for a in obs:
             obs[a]["lstm_state"] = model.initial_state(batch_size=1)
-            obs[a]["team_latent_state"] = torch.zeros(1, 1, 8, 256)
 
         while True:
             free_indices = [free_queue.get() for _ in range(flags.num_agents)]
@@ -304,17 +303,8 @@ def act(
                 timings.time("model")
                 next_obs, reward, done, info = env.step(actions)
 
-                team_latent_states = {
-                    t: torch.stack([
-                        agent_output.get(t * 8 + a, torch.zeros(1, 1, 256))["latent_state"]
-                        for a in range(8)
-                    ]) for t in range(8)
-                }
-
-
                 for a in next_obs:
                     next_obs[a]["lstm_state"] = agent_output[a]["lstm_state"]
-                    next_obs[a]["team_latent_state"] = team_latent_states[a // 8]
 
                 timings.time("step")
 
@@ -339,7 +329,7 @@ def act(
                 obs=obs,
                 agent_output=None,
                 reward=None,
-                done=None,
+                done=done,
                 info=None,
             )
 
@@ -397,6 +387,7 @@ def learn(
     """Performs a learning (optimization) step."""
     batch["lstm_state"] = batch["lstm_state"][0]
     learner_outputs = learner_model(batch, training=True)
+
     # Take final value function slice for bootstrapping.
     bootstrap_value = learner_outputs["value"][-1]
     value = learner_outputs["value"][:-1]
@@ -408,7 +399,7 @@ def learn(
     }
 
     reward = batch["reward"]
-    discount = (~batch["done"]).float() * flags.discounting
+    discount = (~batch["done"][:-1]).float() * flags.discounting
     mask = batch["mask"].float()  # mask dead agent
     logits = []
     actions = []
@@ -469,7 +460,7 @@ def learn(
         optimizer.step()
 
     actor_model.load_state_dict(learner_model.state_dict())
-    episode_end = (batch["done"] == True) & (batch["mask"] == True)
+    episode_end = (batch["done"][:-1] == True) & (batch["mask"] == True)
     episode_returns = batch["episode_return"][episode_end]
     episode_steps = batch["episode_step"][episode_end]
 

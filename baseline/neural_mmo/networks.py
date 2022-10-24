@@ -212,13 +212,17 @@ class NMMONet(nn.Module):
         input_dict: Dict,
         training: bool = False,
     ) -> Dict[str, torch.Tensor]:
+
+        learning = False
+        if (input_dict["terrain"].shape[0]>1):
+            learning = True
+
         T, B, *_ = input_dict["terrain"].shape
         local_map_emb = self.local_map_embedding(input_dict)
         self_entity_emb, other_entity_emb = self.entity_embedding(input_dict)
         items = self.item_embedding(input_dict["items"])
         market = self.item_embedding(input_dict["market"])
 
-        # team_memory = input_dict["team_memory"].float().view(T, B, -1)
         # team_memory = self.team_memory_net(team_memory)
 
         # goal = F.relu(self.goal_fc1(input_dict["goal"].float().view(T,B, -1)))
@@ -239,8 +243,8 @@ class NMMONet(nn.Module):
             lstm_state = lstm_state.permute(1, 2, 0, 3)
 
             notdone = (~input_dict["done"]).float()
-            if notdone.shape[0] < lstm_input.shape[0]:
-                notdone = torch.cat([notdone, torch.ones(1, B).to(device=notdone.device)])
+            # if notdone.shape[0] < lstm_input.shape[0]:
+            #     notdone = torch.cat([notdone, torch.ones(1, B).to(device=notdone.device)])
     
             lstm_output_list = []
             for input, nd in zip(lstm_input.unbind(), notdone.unbind()):
@@ -259,8 +263,7 @@ class NMMONet(nn.Module):
 
         output = {
             "value": value.view(T, B),
-            "lstm_state": lstm_state,
-            "latent_state": lstm_output.view(T, B, self.latent_size)
+            "lstm_state": lstm_state
         }
 
         for key, val in logits.items():

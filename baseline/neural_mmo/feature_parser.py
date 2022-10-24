@@ -49,8 +49,8 @@ class FeatureParser:
         # "memory":
         # spaces.Box(low=0, high=1, shape=(2, 128), dtype=np.float32),
         
-        "team_latent_state":
-        spaces.Box(low=0, high=1, shape=(8, 256), dtype=np.float32),
+        # "team_latent_state":
+        # spaces.Box(low=0, high=1, shape=(8, 256), dtype=np.float32),
 
         # "goal":
         # spaces.Box(low=0, high=1, shape=(2, 29), dtype=np.float32),

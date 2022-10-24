@@ -90,6 +90,10 @@ class RewardParser:
             team_weight = float(self.phase.split("-")[1]) / 100
             return self.team_reward(prev_metric, curr_metric, obs, step, done, team_weight)
 
+        if self.phase.startswith("teamkill-"):
+            team_weight = float(self.phase.split("-")[1]) / 100
+            return self.team_reward(prev_metric, curr_metric, obs, step, done, team_weight, )
+
         if self.phase.startswith("sparse") or self.phase.startswith("randomized"):
             return self.weighted_reward(prev_metric, curr_metric, obs, step, done)
 
