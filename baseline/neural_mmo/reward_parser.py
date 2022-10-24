@@ -180,11 +180,11 @@ class RewardParser:
             if agent_id in water and water[agent_id] == 0:
                 r -= 0.1
 
-            if friends[agent_id] >= 2:
-                r += 0.001
+            # if friends[agent_id] >= 2:
+            #     r += 0.001
             
-            if enemies[agent_id] > friends[agent_id]:
-                r -= 0.002
+            # if enemies[agent_id] > friends[agent_id]:
+            #     r -= 0.002
                 
 
             # Death penalty
