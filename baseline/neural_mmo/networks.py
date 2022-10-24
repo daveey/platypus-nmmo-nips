@@ -22,17 +22,12 @@ class ActionHead(nn.Module):
     def __init__(self, input_dim: int):
         super().__init__()
         self.heads = nn.ModuleDict({
-            name: nn.Sequential(
-                nn.Linear(input_dim, 64),
-                nn.ReLU(),
-                nn.Linear(64, output_dim)
-            ) for name, output_dim in self.name2dim.items()
+            name: nn.Linear(input_dim, output_dim)
+            for name, output_dim in self.name2dim.items()
         })
 
     def forward(self, x) -> Dict[str, torch.Tensor]:
-        out = {name: self.heads[name](x) for name in self.name2dim}
-        return out
-
+        return{name: self.heads[name](x) for name in self.name2dim}
 
 # class NMMONet(nn.Module):
 #     def __init__(self):
@@ -128,13 +123,6 @@ class NMMONet(nn.Module):
         self.item_fc1 = nn.Linear(14, 32)
         self.item_fc2 = nn.Linear(25*32, 32)
 
-        # self.team_memory_net = nn.Sequential(
-        #     nn.Linear(8*2*128, 64),
-        #     nn.ReLU(),
-        #     nn.Linear(64, 64),
-        #     nn.ReLU(),
-        # )
-
         self.embeddings = [
             self.local_map_fc, 
             self.self_entity_fc2,
@@ -146,7 +134,6 @@ class NMMONet(nn.Module):
         self.embedding_size = sum([e.out_features for e in self.embeddings])
 
         self.fc1 = nn.Linear(self.embedding_size, self.latent_size)
-        self.fc2 = nn.Linear(self.latent_size, self.latent_size)
 
         if self.num_lstm_layers > 0:
             self.lstm = nn.LSTM(self.latent_size, self.latent_size, num_layers=self.num_lstm_layers)
@@ -229,8 +216,6 @@ class NMMONet(nn.Module):
             local_map_emb, self_entity_emb, other_entity_emb, 
             items, market], dim=-1)
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-
 
         lstm_input = x.view(T, B, -1)
         lstm_output = lstm_input
