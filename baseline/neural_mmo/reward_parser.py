@@ -177,10 +177,10 @@ class RewardParser:
                 r -= 0.1
 
             if friends[agent_id] >= 2:
-                r += 0.01
+                r += 0.001
             
             if enemies[agent_id] > friends[agent_id]:
-                r -= 0.02
+                r -= 0.002
                 
 
             # Death penalty
