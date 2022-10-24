@@ -55,7 +55,8 @@ GOALS = {
 }
 
 class RewardParser:
-    def __init__(self, phase: str = "phase1"):
+    def __init__(self, num_team_members, phase):
+        self.num_team_members = num_team_members
         self.phase = phase
         self.best_ever_equip_level = defaultdict(
             lambda: defaultdict(lambda: 0))
@@ -88,12 +89,15 @@ class RewardParser:
         step: int,
         done: Dict[int, bool]
     ) -> Dict[int, float]:
-        team_rewards = {t: 0 for t in range(8)}
+        team_rewards = {}
         baseline = self.baseline_reward(prev_metric, curr_metric, obs, step, done)
+
         for agent_id in curr_metric:
-            team_rewards[agent_id // 8] += baseline[agent_id]
+            tid = agent_id // self.num_team_members
+            team_rewards[tid] = team_rewards.get(tid, 0) + baseline[agent_id]
+
         return { a: (1-self.team_weight) * baseline[a] + 
-                    self.team_weight * team_rewards[a // 8] / 8 
+                    self.team_weight * team_rewards[a // self.num_team_members] 
                 for a in baseline }
 
     def baseline_reward(

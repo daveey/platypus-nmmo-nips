@@ -31,7 +31,7 @@ class TrainEnv(Wrapper):
         super().__init__(env)
         self.num_selfplay_team = num_selfplay_team
         self.feature_parser = FeatureParser()
-        self.reward_parser = RewardParser(reward_setting)
+        self.reward_parser = RewardParser(self.num_team_member, reward_setting)
         self._setup()
 
     def _setup(self):
@@ -52,12 +52,6 @@ class TrainEnv(Wrapper):
         raw_obs = super().reset()
         obs = self._flatten(self._get(raw_obs))
         obs = self.feature_parser.parse(obs, self._step)
-        # for a in obs.keys():
-            # obs[a]["memory"] = np.zeros([2, 128])
-            # obs[a]["team_memory"] = np.zeros([8, 2, 128])
-            # obs[a]["goal"] = np.stack(
-            #     [self.reward_parser.goal_weights, 
-            #     self.reward_parser.team_goal_weights])
 
         metrics = self._flatten(self._get(self.metrices_by_team()))
 

@@ -18,7 +18,7 @@ class MonobeastBaseline(Team):
                  env_config: config.Config,
                  checkpoint_path=None):
         super().__init__(team_id, env_config)
-        self.model: nn.Module = NMMONet(1)
+        self.model: nn.Module = NMMONet(2)
         env_config.NMAP = 1
         if checkpoint_path is not None:
             print(f"load checkpoint: {checkpoint_path}")
