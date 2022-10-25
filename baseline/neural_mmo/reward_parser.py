@@ -97,7 +97,7 @@ class RewardParser:
             team_rewards[tid] = team_rewards.get(tid, 0) + baseline[agent_id]
 
         return { a: (1-self.team_weight) * baseline[a] + 
-                    self.team_weight * team_rewards[a // self.num_team_members] 
+                    self.team_weight * team_rewards[a // self.num_team_members] / self.num_team_members
                 for a in baseline }
 
     def baseline_reward(
