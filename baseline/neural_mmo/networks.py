@@ -232,7 +232,7 @@ class NMMONet(nn.Module):
                 # Make `done` broadcastable with (num_layers, B, hidden_size)
                 # states:
                 nd = nd.view(1, -1, 1)
-                lstm_state = tuple((nd * s).contiguous() for s in lstm_state)
+                lstm_state = tuple(nd * s for s in lstm_state)
                 output, lstm_state = self.lstm(input.unsqueeze(0), lstm_state)
                 lstm_output_list.append(output)
             lstm_output = torch.flatten(torch.cat(lstm_output_list), 0, 1)

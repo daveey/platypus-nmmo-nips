@@ -60,6 +60,8 @@ parser.add_argument("--num_buffers", default=None, type=int,
                     metavar="N", help="Number of shared-memory buffers.")
 parser.add_argument("--disable_cuda", action="store_true",
                     help="Disable CUDA.")
+parser.add_argument("--actor_cuda", action="store_true",
+                    help="Use CUDA for actor models.")
 parser.add_argument("--checkpoint_interval", default=600, type=int, metavar="T",
                     help="Checkpoint interval (default: 10min).")
 parser.add_argument("--restart_actor_interval", default=18000, type=int, metavar="T",
@@ -591,6 +593,9 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     step, stats = 0, {}
 
     actor_model = Net(flags.lstm_layers)
+    if flags.actor_cuda:
+        actor_model = actor_model.to(device=flags.device)
+
     learner_model = Net(flags.lstm_layers).to(device=flags.device)
     if flags.checkpoint_path is not None:
         cp = flags.checkpoint_path
