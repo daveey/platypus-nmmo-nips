@@ -2,6 +2,7 @@ import argparse
 from email.policy import strict
 import logging
 import pprint
+import os
 from sched import scheduler
 import subprocess
 import threading
@@ -592,8 +593,12 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     actor_model = Net(flags.lstm_layers)
     learner_model = Net(flags.lstm_layers).to(device=flags.device)
     if flags.checkpoint_path is not None:
-        logging.info(f"load checkpoint: {flags.checkpoint_path}")
-        previous_checkpoint = torch.load(flags.checkpoint_path, map_location=flags.device)
+        cp = flags.checkpoint_path
+        if os.path.isdir(cp):
+            latest = max([int(m[6:-4]) for m in os.listdir(cp) if m.startswith("model_")])
+            cp = f"{cp}/model_{latest}.pt"
+        logging.info(f"load checkpoint: {cp}")
+        previous_checkpoint = torch.load(cp, map_location=flags.device)
         checkpoint_state_dict = previous_checkpoint["model_state_dict"]
         if not flags.reset_step:
             step = previous_checkpoint["step"]
