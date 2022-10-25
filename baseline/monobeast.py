@@ -595,7 +595,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     if flags.checkpoint_path is not None:
         cp = flags.checkpoint_path
         if os.path.isdir(cp):
-            latest = max([int(m[6:-4]) for m in os.listdir(cp) if m.startswith("model_")])
+            latest = max([int(m[6:-3]) for m in os.listdir(cp) if m.startswith("model_")])
             cp = f"{cp}/model_{latest}.pt"
         logging.info(f"load checkpoint: {cp}")
         previous_checkpoint = torch.load(cp, map_location=flags.device)
