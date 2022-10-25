@@ -460,10 +460,10 @@ def learn(
         optimizer.step()
 
     actor_model.load_state_dict(learner_model.state_dict())
+    game_over = batch["game_over"] == True
     episode_returns = batch["episode_return"][game_over]
     episode_steps = batch["episode_step"][game_over]
 
-    game_over = batch["game_over"] == True
 
     agent_lifespan = batch["agent_lifespan"][game_over]
     team_lifespan = batch["team_lifespan"][game_over]
