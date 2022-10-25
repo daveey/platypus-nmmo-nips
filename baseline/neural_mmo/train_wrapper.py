@@ -64,7 +64,7 @@ class TrainEnv(Wrapper):
         self._step += 1
 
         # preprocess action
-        decisions = self.get_opponent_decision(self._prev_raw_obs)
+        decisions = self.get_opponent_decision(self._prev_raw_obs)  
         actions = self.transform_action(
             self._unflatten(actions),
             observations=self._prev_raw_obs,

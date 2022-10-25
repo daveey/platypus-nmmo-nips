@@ -460,9 +460,8 @@ def learn(
         optimizer.step()
 
     actor_model.load_state_dict(learner_model.state_dict())
-    episode_end = (batch["done"][:-1] == True) & (batch["mask"] == True)
-    episode_returns = batch["episode_return"][episode_end]
-    episode_steps = batch["episode_step"][episode_end]
+    episode_returns = batch["episode_return"][game_over]
+    episode_steps = batch["episode_step"][game_over]
 
     game_over = batch["game_over"] == True
 
