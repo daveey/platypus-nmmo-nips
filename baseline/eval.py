@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import os
 
 from neurips2022nmmo import CompetitionConfig, RollOut, scripted
 
@@ -33,4 +34,10 @@ if __name__ == "__main__":
         default=1
     )    
     args = parser.parse_args()
-    rollout(args.model, args.num_trials)
+
+    model = args.model
+    if os.path.isdir(model):
+            latest = max([int(m[6:-3]) for m in os.listdir(model) if m.startswith("model_")])
+            model = f"{model}/model_{latest}.pt"
+    
+    rollout(model, args.num_trials)
