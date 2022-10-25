@@ -18,12 +18,11 @@ class MonobeastBaseline(Team):
                  env_config: config.Config,
                  checkpoint_path=None):
         super().__init__(team_id, env_config)
-        self.model: nn.Module = NMMONet(num_lstm_layers=2)
         env_config.NMAP = 1
-        if checkpoint_path is not None:
-            print(f"load checkpoint: {checkpoint_path}")
-            checkpoint = torch.load(checkpoint_path, map_location="cpu")
-            self.model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+        print(f"load checkpoint: {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        self.model: nn.Module = NMMONet(num_lstm_layers=checkpoint["flags"]["lstm_layers"])
+        self.model.load_state_dict(checkpoint["model_state_dict"], strict=False)
         self.feature_parser = FeatureParser()
         self.reset()
 
