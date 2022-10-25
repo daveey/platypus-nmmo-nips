@@ -8,7 +8,7 @@ from neurips2022nmmo import CompetitionConfig, RollOut, scripted
 from submission import MonobeastBaseline
 
 
-def rollout(model_path, timesteps, num_trials):
+def rollout(model_path, num_steps, num_trials):
     config = CompetitionConfig()
     config.RENDER = False
     config.SAVE_REPLAY = False
@@ -20,7 +20,7 @@ def rollout(model_path, timesteps, num_trials):
         [scripted.MixtureTeam(f"M-{i}", config) for i in range(10)])
     all_teams.append(my_team)
     ro = RollOut(config, all_teams, parallel=True)
-    results = ro.run(n_timestep=timesteps, n_episode=num_trials, render=False)
+    results = ro.run(n_timestep=num_steps, n_episode=num_trials, render=False)
     # print(results)
 
 if __name__ == "__main__":
@@ -35,7 +35,7 @@ if __name__ == "__main__":
         default=1
     )    
     parser.add_argument(
-        "--timesteps",
+        "--steps",
         type=int,
         default=1024
     )    
@@ -46,4 +46,4 @@ if __name__ == "__main__":
             latest = max([int(m[6:-3]) for m in os.listdir(model) if m.startswith("model_")])
             model = f"{model}/model_{latest}.pt"
     
-    rollout(model, args.timesteps, args.trials)
+    rollout(model, args.steps, args.trials)
