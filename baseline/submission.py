@@ -18,7 +18,7 @@ class MonobeastBaseline(Team):
                  env_config: config.Config,
                  checkpoint_path=None):
         super().__init__(team_id, env_config)
-        self.model: nn.Module = NMMONet(2)
+        self.model: nn.Module = NMMONet(num_lstm_layers=2)
         env_config.NMAP = 1
         if checkpoint_path is not None:
             print(f"load checkpoint: {checkpoint_path}")
@@ -86,6 +86,7 @@ class MonobeastBaseline(Team):
                                             self.my_script)
         return actions[0]
 
+    @torch.no_grad()
     def act(
         self,
         observations: Dict[int, Dict[str, np.ndarray]],

@@ -247,7 +247,6 @@ def unbatch(agent_output: Dict[str, Tensor], agent_ids: List[int]):
     return unbatched_agent_output
 
 
-@torch.no_grad()
 def act(
     flags,
     actor_index: int,

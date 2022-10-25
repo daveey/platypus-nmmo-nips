@@ -9,7 +9,7 @@ from submission import MonobeastBaseline
 def rollout(model_path, num_trials):
     config = CompetitionConfig()
     config.RENDER = False
-    config.SAVE_REPLAY = "eval"
+    config.SAVE_REPLAY = False
     my_team = MonobeastBaseline(team_id=f"my-team",
                                 env_config=config,
                                 checkpoint_path=model_path)
