@@ -111,6 +111,12 @@ class RewardParser:
         reward = {}
         food, water, friends, enemies = self.extract_info_from_obs(obs)
         for agent_id in curr_metric:
+
+            # skip over dead agents
+            if agent_id not in done:
+                reward[agent_id] = 0
+                continue
+
             curr, prev = curr_metric[agent_id], prev_metric[agent_id]
             r = 0.0
             # Alive reward
