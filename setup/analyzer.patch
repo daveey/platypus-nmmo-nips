@@ -1,0 +1,8 @@
+22d21
+<     damage_inflicted: int
+34d32
+<             "damage_inflicted",
+64d61
+<         damage_inflicted = stat_by_team[team_idx]["sum"]["DamageInflicted"]
+74d70
+<             damage_inflicted=damage_inflicted,
