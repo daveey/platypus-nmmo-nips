@@ -42,7 +42,7 @@ class FeatureParser:
         "va_sell_target":
         spaces.Box(low=0, high=1, shape=(170, ), dtype=np.float32),
         "va_sell_price":
-        spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+        spaces.Box(low=0, high=1, shape=(100, ), dtype=np.float32),
         "va_send_token":
         spaces.Box(low=0, high=1, shape=(170, ), dtype=np.float32),
 
@@ -116,12 +116,12 @@ class FeatureParser:
                 "market": market,
                 "va_move": va_move,
                 "va_attack_target": va_attack_target,
-                "va_attack_style": np.ones(3),
+                "va_attack_style": np.ones(self.spec["va_attack_style"].shape[0]),
                 "va_use_target": va_use_target,
                 "va_buy_target": va_buy_target,
                 "va_sell_target": va_sell_target,
-                "va_send_token": np.ones(170),
-                "va_sell_price": np.ones(6),
+                "va_send_token": np.ones(self.spec["va_send_token"].shape[0]),
+                "va_sell_price": np.ones(self.spec["va_sell_price"].shape[0]),
             }
         return {
             agent_id: agent_obs.get(agent_id, self._dummy_features)
