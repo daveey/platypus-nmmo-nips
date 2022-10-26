@@ -15,7 +15,7 @@ class ActionHead(nn.Module):
         "use_target": 170, 
         "sell_target": 170, 
         "buy_target": 170, 
-        "sell_price": 6,
+        "sell_price": 100,
         "send_token": 170,
     }
 

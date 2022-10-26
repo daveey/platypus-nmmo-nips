@@ -78,23 +78,25 @@ class NMMODataset(IterableDataset):
             attack_style = action[nmmo.io.action.Attack][nmmo.io.action.Style]
             attack_target = action[nmmo.io.action.Attack][
                 nmmo.io.action.Target]
-            labels["attack_style"] = attack_style + 1
+            labels["attack_style"] = attack_style
             labels["attack_target"] = attack_target + 1
         if nmmo.io.action.Move in action:
             direction = action[nmmo.io.action.Move][nmmo.io.action.Direction]
             labels["move"] = direction + 1
         if nmmo.io.action.Use in action:
             use_item = action[nmmo.io.action.Use][nmmo.io.action.Item]
-            labels["use_item"] = use_item + 1
+            labels["use_target"] = use_item + 1
         if nmmo.io.action.Sell in action:
             sell_item = action[nmmo.io.action.Sell][nmmo.io.action.Item]
             sell_price = action[nmmo.io.action.Sell][nmmo.io.action.Price]
             labels["sell_target"] = sell_item + 1
-            labels["sell_price"] = sell_price + 1
+            labels["sell_price"] = sell_price
         if nmmo.io.action.Buy in action:
             buy_item = action[nmmo.io.action.Buy][nmmo.io.action.Item]
-            labels["buy_item"] = buy_item + 1
-
+            labels["buy_target"] = buy_item + 1
+        if nmmo.io.action.Comm in action:
+            send_token = action[nmmo.io.action.Comm][nmmo.io.action.Token]
+            labels["send_token"] = send_token + 1
         return labels
 
 
@@ -107,11 +109,19 @@ def train(flags, model, loss_fn, optimizer):
         "attack_style": 0,
         "attack_target": 0,
         "move": 0,
+        "sell_target": 0,
+        "sell_price": 0,
+        "buy_target": 0,
+        "send_token": 0,
     }
     loss_coefs = {
         "attack_style": 1,
         "attack_target": 1.5,
         "move": 2,
+        "sell_target": 0.1,
+        "sell_price": 0.1,
+        "buy_target": 0.1,
+        "send_token": 0.1,
     }
 
     dataset = NMMODataset(flags.npy_save_dir, n_epoch=flags.n_epoch)
@@ -132,11 +142,12 @@ def train(flags, model, loss_fn, optimizer):
         feature_batch["lstm_state"] = model.initial_state(len(feature_batch))
         preds = model(feature_batch, training=True)
         loss = torch.zeros((), dtype=torch.float32).to(flags.device)
-        target_actions = ["move", "attack_style", "attack_target"]
+        target_actions = ["move", "attack_style", "attack_target", "sell_target", "sell_price", "buy_target", "send_token"]
         for label_key in target_actions:
             label = labels[label_key]
             pred = preds[f"{label_key}_logits"]
             pred = pred.view(-1, pred.shape[-1])
+
             action_losses[label_key] = loss_fn(pred, label)
             loss += loss_coefs[label_key]*action_losses[label_key]
 
@@ -182,8 +193,8 @@ if __name__ == "__main__":
     net = NMMONet(0).to(device=flags.device)
     if flags.checkpoint_path is not None:
         print(f"Loading checkpoint: {flags.checkpoint_path}")
-        pretrained_checkpoint = torch.load(flags.checkpoint_path)
-        net.load_state_dict(pretrained_checkpoint)
+        pretrained_checkpoint = torch.load(flags.checkpoint_path, map_location=flags.device)
+        net.load_state_dict(pretrained_checkpoint, strict=False)
     else:
         print("Model training from scratch!")
 
