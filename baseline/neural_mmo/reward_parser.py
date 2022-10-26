@@ -60,9 +60,20 @@ class RewardParser:
         self.phase = phase
         self.best_ever_equip_level = defaultdict(
             lambda: defaultdict(lambda: 0))
-        self.team_weight = float(self.phase.split("-")[1]) / 100
-        self.kill_weight = float(self.phase.split("-")[2]) / 100
-        print(f"reward settings: team: {self.team_weight:.2f} kill: {self.kill_weight:.2f}")
+        
+        self.reward_weights = {
+            "team": 0,
+            "kill": 0.5,
+            "dt": 0.01,
+            "di": 0.01,
+            "prox": 0.01
+        }
+        for rw in self.phase.split(","):
+            n,v = rw.split(":")
+            assert n in self.reward_weights, f"reward {n} not in {self.reward_weights.keys()}"
+            self.reward_weights[n] = float(v)
+
+        print(f"reward settings: ", self.reward_weights)
         self.reset()
 
     def reset(self):
@@ -93,11 +104,26 @@ class RewardParser:
         baseline = self.baseline_reward(prev_metric, curr_metric, obs, step, done)
 
         for agent_id in curr_metric:
+            if agent_id not in done:
+                continue
+
             tid = agent_id // self.num_team_members
             team_rewards[tid] = team_rewards.get(tid, 0) + baseline[agent_id]
+            proximity_rewards = {}
+            
+            for ally in range(self.num_team_members):
+                ally_id = tid * self.num_team_members + ally
+                distance = (
+                    abs(obs[ally_id]["self_entity"][0, 4] - 
+                        obs[agent_id]["self_entity"][0, 4]) + 
+                    abs(obs[ally_id]["self_entity"][0, 5] - 
+                        obs[agent_id]["self_entity"][0, 5]))
+                if ally_id != agent_id and distance < 0.1:
+                    proximity_rewards[agent_id] = proximity_rewards.get(agent_id, 0) + (
+                        self.reward_weights["prox"] * baseline[ally_id])
 
-        return { a: (1-self.team_weight) * baseline[a] + 
-                    self.team_weight * team_rewards[a // self.num_team_members] / self.num_team_members
+        return { a: (1-self.reward_weights["team"]) * baseline[a] + 
+                    self.reward_weights["team"] * team_rewards.get(a // self.num_team_members, 0) / self.num_team_members
                 for a in baseline }
 
     def baseline_reward(
@@ -109,7 +135,7 @@ class RewardParser:
         done: Dict[int, bool],
     ) -> Dict[int, float]:
         reward = {}
-        food, water, friends, enemies = self.extract_info_from_obs(obs)
+        food, water = self.extract_info_from_obs(obs)
         for agent_id in curr_metric:
 
             # skip over dead agents
@@ -123,7 +149,10 @@ class RewardParser:
             if curr["TimeAlive"] == 1024:
                 r += 10.0
             # Defeats reward
-            r += (curr["PlayerDefeats"] - prev["PlayerDefeats"]) * self.kill_weight
+            r += (curr["PlayerDefeats"] - prev["PlayerDefeats"]) * self.reward_weights["kill"]
+
+            # Damage reward
+            r += (curr["DamageInflicted"] - prev["DamageInflicted"]) * self.reward_weights["di"]
 
             # Profession reward
             for p in PROFESSION:
@@ -141,19 +170,14 @@ class RewardParser:
                     r += delta * 0.1 * curr[e]
                     self.best_ever_equip_level[agent_id][e] = curr[e]
             # DamageTaken penalty
-            r -= (curr["DamageTaken"] - prev["DamageTaken"]) * 0.01
+            r -= (curr["DamageTaken"] - prev["DamageTaken"]) * self.reward_weights["dt"]
+
             # Starvation penalty
             if agent_id in food and food[agent_id] == 0:
                 r -= 0.1
             if agent_id in water and water[agent_id] == 0:
                 r -= 0.1
 
-            # if friends[agent_id] >= 2:
-            #     r += 0.001
-            
-            # if enemies[agent_id] > friends[agent_id]:
-            #     r -= 0.002
-                
 
             # Death penalty
             if agent_id in done and done[agent_id]:
@@ -166,6 +190,4 @@ class RewardParser:
     def extract_info_from_obs(self, obs: Dict[int, Dict[str, np.ndarray]]):
         food = {i: obs[i]["self_entity"][0, 11] for i in obs}
         water = {i: obs[i]["self_entity"][0, 12] for i in obs}
-        friends = {i: sum(obs[i]["entity_population"].flatten() == 1) - 1 for i in obs}
-        enemies = {i: sum(obs[i]["entity_population"].flatten() == 2) for i in obs}
-        return food, water, friends, enemies
+        return food, water

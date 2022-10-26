@@ -49,7 +49,7 @@ class MonobeastEnv:
                 info_[aid]["agent_lifespan"] = ainfo["episode_step"]
                 info_[aid]["game_over"] = True
                 for mk, mv in ainfo["metrics"].items():
-                    if mk in ["DamageTaken", "PlayerDefeats"]:
+                    if mk in ["DamageTaken", "PlayerDefeats", "DamageInflicted"]:
                         info_[aid]["agent_" + mk.lower()] = mv
                 del info_[aid]["metrics"]
                 team_lifespan[tid] = max(
