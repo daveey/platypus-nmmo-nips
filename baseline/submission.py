@@ -93,6 +93,11 @@ class MonobeastBaseline(Team):
         self.step += 1
         if "stat" in observations:
             stat = observations.pop("stat")
+        
+        # for k in ["DamageInflicted", "DamageTaken"]:
+        #     for a,s in stat.items():
+        #         if s[k] != 0:
+        #             print("xcxc", a, k, s[k])
         actions = self.compute_actions(observations)
         return actions
 
