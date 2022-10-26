@@ -1,0 +1,5 @@
+15d14
+<             "DamageInflicted",
+57,58d55
+<                 "DamageInflicted":
+<                 float(tasks.damage_inflicted(realm, player)),
