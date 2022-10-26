@@ -15,7 +15,7 @@ python monobeast.py \
     --restart_actor_interval 18000 \
     --reward_setting phase1 \
     --xpid nmmo \
-    --lstm_size 1 \
+    --lstm_layers 1 \
     --wandb \
     $@ \
     #--checkpoint_path ./checkpoints/model_2757376.pt
